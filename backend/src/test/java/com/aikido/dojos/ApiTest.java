@@ -46,7 +46,13 @@ class ApiTest {
         long d1 = create("/api/dojos", Map.of("name", "Old Dojo", "country", "USA"));
         long d2 = create("/api/dojos", Map.of("name", "New Dojo", "country", "USA"));
         long d3 = create("/api/dojos", Map.of("name", "Second Current", "country", "USA"));
-        long p = create("/api/practitioners", Map.of("firstName", "Ann", "lastName", "Zed", "rank", "Shodan"));
+        long p = create("/api/practitioners", Map.of("firstName", "Ann", "lastName", "Zed", "rank", "SHODAN"));
+        mvc.perform(get("/api/ranks")).andExpect(jsonPath("$[0].code").value("ROKYU"))
+                .andExpect(jsonPath("$[6].japanese").value("shodan"));
+        mvc.perform(get("/api/practitioners/" + p)).andExpect(jsonPath("$.rank").value("SHODAN"));
+        mvc.perform(post("/api/practitioners").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"firstName\":\"A\",\"lastName\":\"B\",\"rank\":\"Grandmaster\"}"))
+                .andExpect(status().isBadRequest());
 
         long old = create("/api/practitioners/" + p + "/memberships",
                 Map.of("dojoId", d1, "startDate", "2015-01-01", "endDate", "2018-06-30"));

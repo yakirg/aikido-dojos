@@ -21,10 +21,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class PractitionerController {
     public record PractitionerRequest(@NotBlank @Size(max = 100) String firstName,
                                       @NotBlank @Size(max = 100) String lastName,
-                                      @Size(max = 200) String email, @Size(max = 50) String rank,
+                                      @Size(max = 200) String email, Rank rank,
                                       LocalDate startDate) {}
 
-    public record PractitionerResponse(Long id, String firstName, String lastName, String email, String rank,
+    public record PractitionerResponse(Long id, String firstName, String lastName, String email, Rank rank,
                                        LocalDate startDate, List<MembershipResponse> memberships) {
         static PractitionerResponse of(Practitioner p) {
             return new PractitionerResponse(p.getId(), p.getFirstName(), p.getLastName(), p.getEmail(), p.getRank(),

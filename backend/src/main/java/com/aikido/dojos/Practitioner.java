@@ -22,9 +22,9 @@ public class Practitioner {
     private String lastName;
     @Size(max = 200)
     private String email;
-    @Size(max = 50)
-    @Column(name = "rank_name")
-    private String rank;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rank_name", length = 50)
+    private Rank rank;
     private LocalDate startDate;
     @OneToMany(mappedBy = "practitioner", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("startDate DESC")

@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { dojosApi, membershipsApi, practitionersApi } from '../api.js';
+import { dojosApi, membershipsApi, practitionersApi, ranksApi } from '../api.js';
+
+const rankLabel = (ranks, code) => {
+  const r = ranks.find((x) => x.code === code);
+  return r ? `${r.label} (${r.japanese})` : '';
+};
 
 const currentDojos = (p) =>
   p.memberships.filter((m) => !m.endDate).map((m) => m.dojoName).join(', ');
@@ -10,10 +15,14 @@ export function PractitionerList() {
   const dojoId = params.get('dojoId') || '';
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
+  const [ranks, setRanks] = useState([]);
   const [dojos, setDojos] = useState([]);
   const [error, setError] = useState('');
 
-  useEffect(() => { dojosApi.list().then(setDojos).catch((e) => setError(e.message)); }, []);
+  useEffect(() => {
+    dojosApi.list().then(setDojos).catch((e) => setError(e.message));
+    ranksApi.list().then(setRanks).catch(() => {});
+  }, []);
   const load = () =>
     practitionersApi.list({ q, dojoId }).then(setItems).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [q, dojoId]);
@@ -47,7 +56,7 @@ export function PractitionerList() {
           {items.map((p) => (
             <tr key={p.id}>
               <td>{p.firstName} {p.lastName}</td>
-              <td>{p.rank}</td>
+              <td>{rankLabel(ranks, p.rank)}</td>
               <td>{currentDojos(p)}</td>
               <td>
                 <Link className="btn" to={`/practitioners/${p.id}`}>Edit</Link>
@@ -70,6 +79,7 @@ export function PractitionerForm() {
   const navigate = useNavigate();
   const [form, setForm] = useState(empty);
   const [dojos, setDojos] = useState([]);
+  const [ranks, setRanks] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [newMembership, setNewMembership] = useState(emptyMembership);
   const [error, setError] = useState('');
@@ -84,6 +94,7 @@ export function PractitionerForm() {
     }).catch((e) => setError(e.message));
 
   useEffect(() => {
+    ranksApi.list().then(setRanks).catch(() => {});
     dojosApi.list().then(setDojos).catch((e) => setError(e.message));
     if (id) load();
   }, [id]);
@@ -93,7 +104,7 @@ export function PractitionerForm() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const data = { ...form, startDate: form.startDate || null };
+    const data = { ...form, rank: form.rank || null, startDate: form.startDate || null };
     try {
       if (id) {
         await practitionersApi.update(id, data);
@@ -153,7 +164,12 @@ export function PractitionerForm() {
         <label>First name<input required value={form.firstName} onChange={set('firstName')} /></label>
         <label>Last name<input required value={form.lastName} onChange={set('lastName')} /></label>
         <label>Email<input type="email" value={form.email} onChange={set('email')} /></label>
-        <label>Rank<input value={form.rank} onChange={set('rank')} /></label>
+        <label>Rank
+          <select value={form.rank} onChange={set('rank')}>
+            <option value="">Unranked</option>
+            {ranks.map((r) => <option key={r.code} value={r.code}>{rankLabel([r], r.code)}  -  {r.title}</option>)}
+          </select>
+        </label>
         <label>Started aikido<input type="date" value={form.startDate} onChange={set('startDate')} /></label>
         <button type="submit">Save</button>
         <Link to="/practitioners">Cancel</Link>

@@ -40,3 +40,5 @@ export const membershipsApi = {
   update: (id, data) => request(`/api/memberships/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id) => request(`/api/memberships/${id}`, { method: 'DELETE' }),
 };
+
+export const ranksApi = { list: () => request('/api/ranks') };
