@@ -20,6 +20,12 @@ beforeEach(() => {
   );
 });
 
+test('shows welcome with add buttons', () => {
+  render(<MemoryRouter initialEntries={['/']}><App /></MemoryRouter>);
+  expect(screen.getByText('Add yourself')).toHaveAttribute('href', '/practitioners/new');
+  expect(screen.getByText('Add your dojo')).toHaveAttribute('href', '/dojos/new');
+});
+
 test('lists dojos', async () => {
   render(<MemoryRouter initialEntries={['/dojos']}><App /></MemoryRouter>);
   expect(await screen.findByText('Tokyo')).toBeInTheDocument();
