@@ -2,8 +2,8 @@
 
 Track aikido dojos worldwide and the practitioners who train there.
 
-- `backend/` â€“ Spring Boot 3 (Java 21, Gradle), Spring Data JPA, Flyway, REST API
-- `frontend/` â€“ React + Vite
+- `backend/` – Spring Boot 3 (Java 21, Gradle), Spring Data JPA, Flyway, REST API
+- `frontend/` – React + Vite
 - Database: H2 file DB by default (dev); PostgreSQL via `docker-compose.yml`
 
 ## Run
@@ -26,7 +26,7 @@ Frontend (http://localhost:5173, proxies `/api` to the backend):
 ```
 cd frontend
 npm install
-npm run dev
+npm start
 ```
 
 ## Test
