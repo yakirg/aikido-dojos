@@ -11,16 +11,14 @@ Track aikido dojos worldwide and the practitioners who train there.
 Backend (http://localhost:8080), uses H2 (`backend/data/`):
 
 ```
-cd backend
-./gradlew bootRun
+./gradlew :backend:bootRun
 ```
 
 With PostgreSQL:
 
 ```
 docker compose up -d
-cd backend
-DB_URL=jdbc:postgresql://localhost:5432/dojos DB_USER=dojos DB_PASSWORD=dojos ./gradlew bootRun
+DB_URL=jdbc:postgresql://localhost:5432/dojos DB_USER=dojos DB_PASSWORD=dojos ./gradlew :backend:bootRun
 ```
 
 Frontend (http://localhost:5173, proxies `/api` to the backend):
@@ -34,7 +32,7 @@ npm run dev
 ## Test
 
 ```
-cd backend && ./gradlew test
+./gradlew test
 cd frontend && npm test
 ```
 
