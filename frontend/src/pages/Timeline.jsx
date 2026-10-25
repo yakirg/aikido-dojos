@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { dojosApi, practitionersApi } from '../api.js';
 
@@ -25,7 +25,7 @@ export function buildEvents(dojos, practitioners) {
 
 const DAY = 86400000;
 const toMs = (s) => Date.parse(s);
-const LEFT = 190, RIGHT = 40, TOP = 40, LANE = 64, WIDTH = 1100;
+const RIGHT = 40, TOP = 40, LANE = 64, MAX_ZOOM = 12;
 
 export function buildChart(dojos, practitioners, today = new Date().toISOString().slice(0, 10)) {
   const lanes = dojos.map((d) => {
@@ -51,25 +51,96 @@ export function buildChart(dojos, practitioners, today = new Date().toISOString(
 
 export function SwimlaneChart({ dojos, practitioners }) {
   const { lanes, people, min, max } = buildChart(dojos, practitioners);
+  const [zoom, setZoom] = useState(1);
+  const scrollRef = useRef(null);
+  const anchor = useRef(null);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const [baseW, setBaseW] = useState(1100);
+  const baseWRef = useRef(1100);
+  baseWRef.current = baseW;
+  const narrow = baseW < 600;
+  const LEFT = narrow ? 14 : 190;
+  const W = Math.round(baseW * zoom);
+
+  const zoomTo = (next, clientX) => {
+    const el = scrollRef.current;
+    const clamped = Math.min(MAX_ZOOM, Math.max(1, next));
+    if (el && clamped !== zoomRef.current) {
+      const ax = clientX === undefined ? el.clientWidth / 2 : clientX - el.getBoundingClientRect().left;
+      anchor.current = { ratio: (el.scrollLeft + ax) / (baseWRef.current * zoomRef.current), ax };
+    }
+    setZoom(clamped);
+  };
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el && anchor.current) {
+      el.scrollLeft = anchor.current.ratio * W - anchor.current.ax;
+      anchor.current = null;
+    }
+  }, [W]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const measure = () => setBaseW(Math.max(280, Math.round(el.clientWidth)));
+    measure();
+    window.addEventListener('resize', measure);
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      zoomTo(zoomRef.current * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX);
+    };
+    let pinch = null;
+    const dist = (ts) => Math.hypot(ts[0].clientX - ts[1].clientX, ts[0].clientY - ts[1].clientY);
+    const onStart = (e) => { if (e.touches.length === 2) pinch = { d: dist(e.touches), z: zoomRef.current }; };
+    const onMove = (e) => {
+      if (pinch && e.touches.length === 2) {
+        e.preventDefault();
+        zoomTo(pinch.z * (dist(e.touches) / pinch.d), (e.touches[0].clientX + e.touches[1].clientX) / 2);
+      }
+    };
+    const onEnd = () => { pinch = null; };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    return () => {
+      window.removeEventListener('resize', measure);
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+    };
+  }, [min]);
+
   if (!min) return <p>No dated events yet.</p>;
   const t0 = toMs(min) - 30 * DAY;
   const t1 = Math.max(toMs(max) + 30 * DAY, t0 + 90 * DAY);
-  const x = (s) => LEFT + ((toMs(s) - t0) / (t1 - t0)) * (WIDTH - LEFT - RIGHT);
+  const x = (s) => LEFT + ((toMs(s) - t0) / (t1 - t0)) * (W - LEFT - RIGHT);
   const laneY = (i) => TOP + i * LANE + LANE / 2;
   const height = TOP + lanes.length * LANE + 20;
   const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear();
-  const step = Math.max(1, Math.ceil((y1 - y0) / 12));
+  const step = Math.max(1, Math.ceil((y1 - y0) / (12 * zoom)));
   const years = [];
   for (let y = y0; y <= y1; y += step) years.push(y);
   const color = (i) => `hsl(${(i * 47) % 360} 70% 40%)`;
   const offset = (i) => ((i % 5) - 2) * 7;
 
   return (
-    <div className="chart-scroll">
-      <svg width={WIDTH} height={height} role="img" aria-label="Dojo swimlane timeline">
+    <div>
+      <div className="toolbar zoom-controls">
+        <button type="button" aria-label="Zoom out" onClick={() => zoomTo(zoom / 1.5)} disabled={zoom <= 1}>−</button>
+        <button type="button" aria-label="Zoom in" onClick={() => zoomTo(zoom * 1.5)} disabled={zoom >= MAX_ZOOM}>+</button>
+        <button type="button" onClick={() => zoomTo(1)} disabled={zoom === 1}>Reset</button>
+        <span>{Math.round(zoom * 100)}% · Ctrl+scroll or pinch to zoom</span>
+      </div>
+    <div className="chart-scroll" ref={scrollRef}>
+      <svg width={W} height={height} role="img" aria-label="Dojo swimlane timeline">
         {years.map((y) => {
           const gx = x(`${y}-01-01`);
-          if (gx < LEFT || gx > WIDTH - RIGHT) return null;
+          if (gx < LEFT || gx > W - RIGHT) return null;
           return (
             <g key={y}>
               <line x1={gx} x2={gx} y1={TOP - 10} y2={height - 10} stroke="#ddd" />
@@ -79,9 +150,9 @@ export function SwimlaneChart({ dojos, practitioners }) {
         })}
         {lanes.map((l, i) => (
           <g key={l.dojo.id}>
-            <rect x={0} y={TOP + i * LANE} width={WIDTH} height={LANE} fill={i % 2 ? '#fafafa' : '#f0f0ec'} opacity="0.6" />
+            <rect x={0} y={TOP + i * LANE} width={W} height={LANE} fill={i % 2 ? '#fafafa' : '#f0f0ec'} opacity="0.6" />
             <a href={`#/dojos/${l.dojo.id}/view`}>
-              <text x={8} y={laneY(i) + 4} fontSize="13" fontWeight="bold" fill="#124">{l.dojo.name}</text>
+              <text x={8} y={narrow ? TOP + i * LANE + 12 : laneY(i) + 4} fontSize="13" fontWeight="bold" fill="#124">{l.dojo.name}</text>
             </a>
             {l.from && (
               <rect x={x(l.from)} y={laneY(i) - 22} width={Math.max(2, x(l.to) - x(l.from))} height={44}
@@ -120,6 +191,7 @@ export function SwimlaneChart({ dojos, practitioners }) {
           );
         })}
       </svg>
+    </div>
     </div>
   );
 }

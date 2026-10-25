@@ -20,3 +20,7 @@ button, .btn { padding: 6px 12px; margin-right: 6px; cursor: pointer; }
 .timeline .dojo-close a, .timeline .leave a { color: #b3261e; }
 
 .chart-scroll { overflow-x: auto; background: #fff; border: 1px solid #ddd; margin-bottom: 16px; }
+
+.chart-scroll { touch-action: pan-x pan-y; }
+.zoom-controls { align-items: center; gap: 6px; }
+.zoom-controls span { color: #666; font-size: 12px; }
