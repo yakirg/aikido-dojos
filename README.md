@@ -42,5 +42,10 @@ cd frontend && npm test
 |---|---|---|
 | GET/POST | `/api/dojos` | `?q=` searches name/city/country |
 | GET/PUT/DELETE | `/api/dojos/{id}` | delete returns 409 if the dojo has practitioners |
-| GET/POST | `/api/practitioners` | `?q=` searches name/email, `?dojoId=` filters |
-| GET/PUT/DELETE | `/api/practitioners/{id}` | `dojoId` in the body links to a dojo (null unlinks) |
+| GET/POST | `/api/practitioners` | `?q=` searches name/email, `?dojoId=` filters (any past or current membership) |
+| GET/PUT/DELETE | `/api/practitioners/{id}` | response includes the practitioner's memberships |
+| GET | `/api/dojos/{id}/memberships` | members of a dojo, past and present |
+| POST | `/api/practitioners/{id}/memberships` | body: `dojoId`, `startDate`, `endDate` (null = current) |
+| PUT/DELETE | `/api/memberships/{id}` | edit or remove a membership |
+
+A practitioner can have many memberships, so they can belong to several dojos at once and have a history of past dojos.

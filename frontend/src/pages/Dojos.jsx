@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { dojosApi, practitionersApi } from '../api.js';
+import { dojosApi, membershipsApi } from '../api.js';
 
 export function DojoList() {
   const [q, setQ] = useState('');
@@ -63,7 +63,7 @@ export function DojoForm() {
     if (!id) return;
     dojosApi.get(id).then((d) => setForm({ ...empty, ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])) }))
       .catch((e) => setError(e.message));
-    practitionersApi.list({ dojoId: id }).then(setMembers).catch(() => {});
+    membershipsApi.forDojo(id).then(setMembers).catch(() => {});
   }, [id]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -97,11 +97,14 @@ export function DojoForm() {
         <>
           <h2>Practitioners</h2>
           <ul>
-            {members.map((p) => (
-              <li key={p.id}><Link to={`/practitioners/${p.id}`}>{p.firstName} {p.lastName}</Link></li>
+            {members.map((m) => (
+              <li key={m.id}>
+                <Link to={`/practitioners/${m.practitionerId}`}>{m.practitionerName}</Link>
+                {' '}({m.startDate || '?'} – {m.endDate || 'present'})
+              </li>
             ))}
           </ul>
-          <Link className="btn" to="/practitioners/new">Add practitioner</Link>
+          <Link className="btn" to="/practitioners">Manage practitioners</Link>
         </>
       )}
     </div>

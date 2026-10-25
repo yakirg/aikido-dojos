@@ -42,24 +42,44 @@ class ApiTest {
     }
 
     @Test
-    void practitionerLinkedToDojo() throws Exception {
-        long dojo = create("/api/dojos", Map.of("name", "Link Dojo", "country", "USA"));
-        long p = create("/api/practitioners",
-                Map.of("firstName", "Ann", "lastName", "Zed", "rank", "Shodan", "dojoId", dojo));
-        mvc.perform(get("/api/practitioners?dojoId=" + dojo)).andExpect(jsonPath("$[0].dojoName").value("Link Dojo"));
-        mvc.perform(get("/api/practitioners?q=zed")).andExpect(jsonPath("$[0].id").value(p));
-        mvc.perform(delete("/api/dojos/" + dojo)).andExpect(status().isConflict());
-        mvc.perform(put("/api/practitioners/" + p).contentType(MediaType.APPLICATION_JSON)
-                .content(om.writeValueAsString(Map.of("firstName", "Ann", "lastName", "Zed"))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.dojoId").doesNotExist());
+    void practitionerWithMultipleAndHistoricalDojos() throws Exception {
+        long d1 = create("/api/dojos", Map.of("name", "Old Dojo", "country", "USA"));
+        long d2 = create("/api/dojos", Map.of("name", "New Dojo", "country", "USA"));
+        long d3 = create("/api/dojos", Map.of("name", "Second Current", "country", "USA"));
+        long p = create("/api/practitioners", Map.of("firstName", "Ann", "lastName", "Zed", "rank", "Shodan"));
+
+        long old = create("/api/practitioners/" + p + "/memberships",
+                Map.of("dojoId", d1, "startDate", "2015-01-01", "endDate", "2018-06-30"));
+        create("/api/practitioners/" + p + "/memberships", Map.of("dojoId", d2, "startDate", "2018-07-01"));
+        create("/api/practitioners/" + p + "/memberships", Map.of("dojoId", d3, "startDate", "2019-01-01"));
+
+        mvc.perform(get("/api/practitioners/" + p)).andExpect(jsonPath("$.memberships.length()").value(3));
+        mvc.perform(get("/api/practitioners?dojoId=" + d1)).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(p));
+        mvc.perform(get("/api/practitioners?q=zed&dojoId=" + d2)).andExpect(jsonPath("$.length()").value(1));
+        mvc.perform(get("/api/dojos/" + d1 + "/memberships")).andExpect(jsonPath("$[0].practitionerName").value("Ann Zed"));
+
+        mvc.perform(delete("/api/dojos/" + d1)).andExpect(status().isConflict());
+        mvc.perform(put("/api/memberships/" + old).contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("dojoId", d1, "startDate", "2015-01-01", "endDate", "2019-01-01"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.endDate").value("2019-01-01"));
+        mvc.perform(delete("/api/memberships/" + old)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/dojos/" + d1)).andExpect(status().isNoContent());
+
         mvc.perform(delete("/api/practitioners/" + p)).andExpect(status().isNoContent());
-        mvc.perform(delete("/api/dojos/" + dojo)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/dojos/" + d2)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/dojos/" + d3)).andExpect(status().isNoContent());
     }
 
     @Test
-    void unknownDojoRejected() throws Exception {
-        mvc.perform(post("/api/practitioners").contentType(MediaType.APPLICATION_JSON)
-                .content(om.writeValueAsString(Map.of("firstName", "A", "lastName", "B", "dojoId", 99999))))
+    void invalidMembershipRejected() throws Exception {
+        long d = create("/api/dojos", Map.of("name", "Bad Dates", "country", "USA"));
+        long p = create("/api/practitioners", Map.of("firstName", "A", "lastName", "B"));
+        mvc.perform(post("/api/practitioners/" + p + "/memberships").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("dojoId", d, "startDate", "2020-01-01", "endDate", "2019-01-01"))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/practitioners/" + p + "/memberships").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("dojoId", 99999))))
                 .andExpect(status().isBadRequest());
     }
 }

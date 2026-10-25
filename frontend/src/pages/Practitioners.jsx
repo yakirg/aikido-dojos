@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { dojosApi, practitionersApi } from '../api.js';
+import { dojosApi, membershipsApi, practitionersApi } from '../api.js';
+
+const currentDojos = (p) =>
+  p.memberships.filter((m) => !m.endDate).map((m) => m.dojoName).join(', ');
 
 export function PractitionerList() {
   const [params, setParams] = useSearchParams();
@@ -39,13 +42,13 @@ export function PractitionerList() {
       </div>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Name</th><th>Rank</th><th>Dojo</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Rank</th><th>Current dojos</th><th>Actions</th></tr></thead>
         <tbody>
           {items.map((p) => (
             <tr key={p.id}>
               <td>{p.firstName} {p.lastName}</td>
               <td>{p.rank}</td>
-              <td>{p.dojoName}</td>
+              <td>{currentDojos(p)}</td>
               <td>
                 <Link className="btn" to={`/practitioners/${p.id}`}>Edit</Link>
                 <button onClick={() => remove(p)}>Delete</button>
@@ -58,36 +61,85 @@ export function PractitionerList() {
   );
 }
 
-const empty = { firstName: '', lastName: '', email: '', rank: '', startDate: '', dojoId: '' };
+
+const empty = { firstName: '', lastName: '', email: '', rank: '', startDate: '' };
+const emptyMembership = { dojoId: '', startDate: '', endDate: '' };
 
 export function PractitionerForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(empty);
   const [dojos, setDojos] = useState([]);
+  const [memberships, setMemberships] = useState([]);
+  const [newMembership, setNewMembership] = useState(emptyMembership);
   const [error, setError] = useState('');
+
+  const load = () =>
+    practitionersApi.get(id).then((p) => {
+      setForm({
+        firstName: p.firstName, lastName: p.lastName, email: p.email ?? '', rank: p.rank ?? '',
+        startDate: p.startDate ?? '',
+      });
+      setMemberships(p.memberships);
+    }).catch((e) => setError(e.message));
 
   useEffect(() => {
     dojosApi.list().then(setDojos).catch((e) => setError(e.message));
-    if (!id) return;
-    practitionersApi.get(id).then((p) => setForm({
-      firstName: p.firstName, lastName: p.lastName, email: p.email ?? '', rank: p.rank ?? '',
-      startDate: p.startDate ?? '', dojoId: p.dojoId ?? '',
-    })).catch((e) => setError(e.message));
+    if (id) load();
   }, [id]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const setM = (k) => (e) => setNewMembership({ ...newMembership, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
-    const data = {
-      ...form,
-      startDate: form.startDate || null,
-      dojoId: form.dojoId === '' ? null : Number(form.dojoId),
-    };
+    const data = { ...form, startDate: form.startDate || null };
     try {
-      if (id) await practitionersApi.update(id, data); else await practitionersApi.create(data);
-      navigate('/practitioners');
+      if (id) {
+        await practitionersApi.update(id, data);
+        navigate('/practitioners');
+      } else {
+        const created = await practitionersApi.create(data);
+        navigate(`/practitioners/${created.id}`);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const addMembership = async (e) => {
+    e.preventDefault();
+    try {
+      await membershipsApi.create(id, {
+        dojoId: Number(newMembership.dojoId),
+        startDate: newMembership.startDate || null,
+        endDate: newMembership.endDate || null,
+      });
+      setNewMembership(emptyMembership);
+      setError('');
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const endMembership = async (m) => {
+    const endDate = window.prompt('End date (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
+    if (!endDate) return;
+    try {
+      await membershipsApi.update(m.id, { dojoId: m.dojoId, startDate: m.startDate, endDate });
+      setError('');
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const removeMembership = async (m) => {
+    if (!window.confirm(`Remove membership at ${m.dojoName}?`)) return;
+    try {
+      await membershipsApi.remove(m.id);
+      load();
     } catch (err) {
       setError(err.message);
     }
@@ -102,16 +154,45 @@ export function PractitionerForm() {
         <label>Last name<input required value={form.lastName} onChange={set('lastName')} /></label>
         <label>Email<input type="email" value={form.email} onChange={set('email')} /></label>
         <label>Rank<input value={form.rank} onChange={set('rank')} /></label>
-        <label>Start date<input type="date" value={form.startDate} onChange={set('startDate')} /></label>
-        <label>Dojo
-          <select value={form.dojoId} onChange={set('dojoId')}>
-            <option value="">No dojo</option>
-            {dojos.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
-        </label>
+        <label>Started aikido<input type="date" value={form.startDate} onChange={set('startDate')} /></label>
         <button type="submit">Save</button>
         <Link to="/practitioners">Cancel</Link>
       </form>
+      {id && (
+        <>
+          <h2>Dojo memberships</h2>
+          <table>
+            <thead><tr><th>Dojo</th><th>From</th><th>To</th><th>Actions</th></tr></thead>
+            <tbody>
+              {memberships.map((m) => (
+                <tr key={m.id}>
+                  <td>{m.dojoName}</td>
+                  <td>{m.startDate}</td>
+                  <td>{m.endDate || 'present'}</td>
+                  <td>
+                    {!m.endDate && <button onClick={() => endMembership(m)}>End</button>}
+                    <button onClick={() => removeMembership(m)}>Remove</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <h3>Add membership</h3>
+          <form onSubmit={addMembership}>
+            <label>Dojo
+              <select required value={newMembership.dojoId} onChange={setM('dojoId')}>
+                <option value="">Select dojo</option>
+                {dojos.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </label>
+            <label>From<input type="date" value={newMembership.startDate} onChange={setM('startDate')} /></label>
+            <label>To (blank if current)
+              <input type="date" value={newMembership.endDate} onChange={setM('endDate')} />
+            </label>
+            <button type="submit">Add</button>
+          </form>
+        </>
+      )}
     </div>
   );
 }

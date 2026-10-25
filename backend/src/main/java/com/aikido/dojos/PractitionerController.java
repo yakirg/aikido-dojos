@@ -1,5 +1,7 @@
 package com.aikido.dojos;
 
+import com.aikido.dojos.MembershipController.MembershipResponse;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -20,30 +22,28 @@ public class PractitionerController {
     public record PractitionerRequest(@NotBlank @Size(max = 100) String firstName,
                                       @NotBlank @Size(max = 100) String lastName,
                                       @Size(max = 200) String email, @Size(max = 50) String rank,
-                                      LocalDate startDate, Long dojoId) {}
+                                      LocalDate startDate) {}
 
     public record PractitionerResponse(Long id, String firstName, String lastName, String email, String rank,
-                                       LocalDate startDate, Long dojoId, String dojoName) {
+                                       LocalDate startDate, List<MembershipResponse> memberships) {
         static PractitionerResponse of(Practitioner p) {
-            Dojo d = p.getDojo();
             return new PractitionerResponse(p.getId(), p.getFirstName(), p.getLastName(), p.getEmail(), p.getRank(),
-                    p.getStartDate(), d == null ? null : d.getId(), d == null ? null : d.getName());
+                    p.getStartDate(), p.getMemberships().stream().map(MembershipResponse::of).toList());
         }
     }
 
     private final PractitionerRepository practitioners;
-    private final DojoRepository dojos;
 
-    PractitionerController(PractitionerRepository practitioners, DojoRepository dojos) {
+    PractitionerController(PractitionerRepository practitioners) {
         this.practitioners = practitioners;
-        this.dojos = dojos;
     }
 
     @GetMapping
     public List<PractitionerResponse> list(@RequestParam(required = false) String q,
                                            @RequestParam(required = false) Long dojoId) {
         Specification<Practitioner> spec = (root, query, cb) -> {
-            List<jakarta.persistence.criteria.Predicate> ps = new ArrayList<>();
+            query.distinct(true);
+            List<Predicate> ps = new ArrayList<>();
             if (q != null && !q.isBlank()) {
                 String like = "%" + q.toLowerCase() + "%";
                 ps.add(cb.or(cb.like(cb.lower(root.get("firstName")), like),
@@ -51,9 +51,9 @@ public class PractitionerController {
                         cb.like(cb.lower(cb.coalesce(root.<String>get("email"), "")), like)));
             }
             if (dojoId != null) {
-                ps.add(cb.equal(root.get("dojo").get("id"), dojoId));
+                ps.add(cb.equal(root.join("memberships").get("dojo").get("id"), dojoId));
             }
-            return cb.and(ps.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return cb.and(ps.toArray(new Predicate[0]));
         };
         return practitioners.findAll(spec, Sort.by("lastName", "firstName")).stream()
                 .map(PractitionerResponse::of).toList();
@@ -92,8 +92,6 @@ public class PractitionerController {
         p.setEmail(r.email());
         p.setRank(r.rank());
         p.setStartDate(r.startDate());
-        p.setDojo(r.dojoId() == null ? null : dojos.findById(r.dojoId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown dojoId")));
         return p;
     }
 }

@@ -18,11 +18,11 @@ public class DojoController {
                               @Size(max = 300) String website, Integer foundedYear) {}
 
     private final DojoRepository dojos;
-    private final PractitionerRepository practitioners;
+    private final MembershipRepository memberships;
 
-    DojoController(DojoRepository dojos, PractitionerRepository practitioners) {
+    DojoController(DojoRepository dojos, MembershipRepository memberships) {
         this.dojos = dojos;
-        this.practitioners = practitioners;
+        this.memberships = memberships;
     }
 
     @GetMapping
@@ -54,8 +54,8 @@ public class DojoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         find(id);
-        if (practitioners.existsByDojoId(id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Dojo still has practitioners");
+        if (memberships.existsByDojoId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Dojo still has memberships");
         }
         dojos.deleteById(id);
     }

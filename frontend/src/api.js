@@ -32,3 +32,11 @@ const crud = (base) => ({
 
 export const dojosApi = crud('/api/dojos');
 export const practitionersApi = crud('/api/practitioners');
+
+export const membershipsApi = {
+  forDojo: (dojoId) => request(`/api/dojos/${dojoId}/memberships`),
+  create: (practitionerId, data) =>
+    request(`/api/practitioners/${practitionerId}/memberships`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => request(`/api/memberships/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id) => request(`/api/memberships/${id}`, { method: 'DELETE' }),
+};

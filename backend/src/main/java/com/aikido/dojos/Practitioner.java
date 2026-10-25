@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -24,9 +26,9 @@ public class Practitioner {
     @Column(name = "rank_name")
     private String rank;
     private LocalDate startDate;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "dojo_id")
+    @OneToMany(mappedBy = "practitioner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("startDate DESC")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Dojo dojo;
+    private List<Membership> memberships = new ArrayList<>();
 }
