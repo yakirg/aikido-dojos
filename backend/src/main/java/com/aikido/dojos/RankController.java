@@ -1,5 +1,6 @@
 package com.aikido.dojos;
 
+import com.aikido.dojos.data.*;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;

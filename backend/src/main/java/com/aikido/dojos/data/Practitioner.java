@@ -1,4 +1,4 @@
-package com.aikido.dojos;
+package com.aikido.dojos.data;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;

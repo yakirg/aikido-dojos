@@ -1,4 +1,4 @@
-package com.aikido.dojos;
+package com.aikido.dojos.data;
 
 public enum Rank {
     ROKYU("6th kyu", "rokyu", "kyu", "Orange Belt"),

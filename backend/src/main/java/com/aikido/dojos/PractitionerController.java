@@ -1,5 +1,6 @@
 package com.aikido.dojos;
 
+import com.aikido.dojos.data.*;
 import com.aikido.dojos.MembershipController.MembershipResponse;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.Valid;

@@ -1,5 +1,6 @@
 package com.aikido.dojos;
 
+import com.aikido.dojos.data.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
