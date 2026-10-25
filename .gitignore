@@ -6,3 +6,6 @@ data/
 .idea/
 build/
 .gradle/
+server.log
+server.err
+caddy.err
