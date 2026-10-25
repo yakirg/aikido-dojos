@@ -16,15 +16,16 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/dojos")
 @Transactional
 public class DojoController {
-    public record DojoRequest(@NotBlank @Size(max = 200) String name, @Size(max = 100) String city,
+    public record DojoRequest(@NotBlank @Size(max = 200) String name, @Size(max = 100) String city, @Size(max = 100) String state,
                               @NotBlank @Size(max = 100) String country, @Size(max = 300) String address,
-                              @Size(max = 300) String website, LocalDate foundedDate, Long founderId) {}
+                              @Size(max = 20) String postalCode, @Size(max = 300) String website, LocalDate foundedDate, Long founderId) {}
 
-    public record DojoResponse(Long id, String name, String city, String country, String address, String website,
-                               LocalDate foundedDate, Long founderId, String founderName) {
+    public record DojoResponse(Long id, String name, String city, String state, String postalCode, String country,
+                               String address, String website, LocalDate foundedDate, Long founderId,
+                               String founderName) {
         static DojoResponse of(Dojo d) {
             Practitioner f = d.getFounder();
-            return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getCountry(), d.getAddress(),
+            return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getState(), d.getPostalCode(), d.getCountry(), d.getAddress(),
                     d.getWebsite(), d.getFoundedDate(), f == null ? null : f.getId(),
                     f == null ? null : f.getFirstName() + " " + f.getLastName());
         }
@@ -82,6 +83,8 @@ public class DojoController {
     private Dojo apply(Dojo d, DojoRequest r) {
         d.setName(r.name());
         d.setCity(r.city());
+        d.setState(r.state());
+        d.setPostalCode(r.postalCode());
         d.setCountry(r.country());
         d.setAddress(r.address());
         d.setWebsite(r.website());

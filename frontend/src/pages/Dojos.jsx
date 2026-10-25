@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { dojosApi, membershipsApi, practitionersApi } from '../api.js';
+import { dojosApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
 
 export function DojoList() {
   const [q, setQ] = useState('');
@@ -31,12 +31,13 @@ export function DojoList() {
       </div>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Name</th><th>City</th><th>Country</th><th>Founded</th><th>Founder</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>City</th><th>State</th><th>Country</th><th>Founded</th><th>Founder</th><th>Actions</th></tr></thead>
         <tbody>
           {dojos.map((d) => (
             <tr key={d.id}>
               <td><Link to={`/practitioners?dojoId=${d.id}`}>{d.name}</Link></td>
               <td>{d.city}</td>
+              <td>{d.state}</td>
               <td>{d.country}</td>
               <td>{d.foundedDate}</td>
               <td>{d.founderName}</td>
@@ -52,7 +53,7 @@ export function DojoList() {
   );
 }
 
-const empty = { name: '', city: '', country: '', address: '', website: '', foundedDate: '', founderId: '' };
+const empty = { name: '', city: '', state: '', postalCode: '', country: '', address: '', website: '', foundedDate: '', founderId: '' };
 
 export function DojoForm() {
   const { id } = useParams();
@@ -61,8 +62,23 @@ export function DojoForm() {
   const [members, setMembers] = useState([]);
   const [practitioners, setPractitioners] = useState([]);
   const [error, setError] = useState('');
+  const [countries, setCountries] = useState([]);
+  const [lookupMsg, setLookupMsg] = useState('');
+
+  const lookup = async () => {
+    const match = countries.find((c) => c.name === form.country);
+    if (!match) { setLookupMsg('Select a country first'); return; }
+    try {
+      const r = await locationsApi.lookup(match.code, form.postalCode);
+      setForm((f) => ({ ...f, city: r.city || f.city, state: r.state || f.state, postalCode: r.postalCode || f.postalCode }));
+      setLookupMsg('');
+    } catch (e) {
+      setLookupMsg(e.message || 'Lookup failed');
+    }
+  };
 
   useEffect(() => {
+    locationsApi.countries().then((c) => setCountries(Array.isArray(c) ? c : [])).catch(() => {});
     practitionersApi.list().then(setPractitioners).catch(() => {});
     if (!id) return;
     dojosApi.get(id).then((d) => setForm({ ...empty, ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])) }))
@@ -93,8 +109,22 @@ export function DojoForm() {
       {error && <p className="error">{error}</p>}
       <form onSubmit={submit}>
         <label>Name<input required value={form.name} onChange={set('name')} /></label>
+        <label>Country
+          <select required value={form.country} onChange={set('country')}>
+            <option value="">Select…</option>
+            {form.country && !countries.some((c) => c.name === form.country) &&
+              <option value={form.country}>{form.country}</option>}
+            {countries.map((c) => <option key={c.code} value={c.name}>{c.name}</option>)}
+          </select>
+        </label>
+        <label>Postal / ZIP code
+          <input value={form.postalCode} onChange={set('postalCode')}
+            onBlur={() => form.postalCode && !form.city && lookup()} />
+        </label>
+        <button type="button" onClick={lookup} disabled={!form.postalCode}>Look up address</button>
+        {lookupMsg && <p className="error">{lookupMsg}</p>}
         <label>City<input value={form.city} onChange={set('city')} /></label>
-        <label>Country<input required value={form.country} onChange={set('country')} /></label>
+        <label>State / Province<input value={form.state} onChange={set('state')} /></label>
         <label>Address<input value={form.address} onChange={set('address')} /></label>
         <label>Website<input value={form.website} onChange={set('website')} /></label>
         <label>Founded<input type="date" value={form.foundedDate} onChange={set('foundedDate')} /></label>

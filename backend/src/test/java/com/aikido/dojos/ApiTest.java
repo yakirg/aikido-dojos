@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class ApiTest {
     @Autowired MockMvc mvc;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean ZipLookupClient zipLookup;
     @Autowired ObjectMapper om;
 
     private long create(String url, Map<String, Object> body) throws Exception {
@@ -89,6 +90,22 @@ class ApiTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(delete("/api/practitioners/" + f)).andExpect(status().isNoContent());
         mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.founderId").doesNotExist());
+    }
+
+    @Test
+    void locationLookupAndState() throws Exception {
+        org.mockito.Mockito.when(zipLookup.lookup("US", "90210")).thenReturn(
+                java.util.Optional.of(new ZipLookupClient.Location("90210", "Beverly Hills", "CA", "United States")));
+        org.mockito.Mockito.when(zipLookup.lookup("US", "00000")).thenReturn(java.util.Optional.empty());
+        mvc.perform(get("/api/locations/lookup?country=US&postalCode=90210")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.city").value("Beverly Hills")).andExpect(jsonPath("$.state").value("CA"));
+        mvc.perform(get("/api/locations/lookup?country=US&postalCode=00000")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/locations/lookup?country=USA&postalCode=90210")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/countries")).andExpect(jsonPath("$[?(@.code=='US')].name").value("United States"));
+        long d = create("/api/dojos", Map.of("name", "Zip Dojo", "country", "United States", "state", "CA",
+                "postalCode", "90210"));
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.state").value("CA"))
+                .andExpect(jsonPath("$.postalCode").value("90210"));
     }
 
     @Test

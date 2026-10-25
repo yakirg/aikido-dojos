@@ -1,5 +1,7 @@
+const API_BASE = import.meta.env?.VITE_API_URL ?? '';
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(API_BASE + path, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -42,3 +44,8 @@ export const membershipsApi = {
 };
 
 export const ranksApi = { list: () => request('/api/ranks') };
+
+export const locationsApi = {
+  countries: () => request('/api/countries'),
+  lookup: (country, postalCode) => request(`/api/locations/lookup${qs({ country, postalCode })}`),
+};

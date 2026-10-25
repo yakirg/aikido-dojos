@@ -18,6 +18,10 @@ public class Dojo {
     private String name;
     @Size(max = 100)
     private String city;
+    @Size(max = 100)
+    private String state;
+    @Size(max = 20)
+    private String postalCode;
     @NotBlank @Size(max = 100)
     private String country;
     @Size(max = 300)
