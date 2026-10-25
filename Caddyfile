@@ -1,4 +1,4 @@
-aikidodojos.duckdns.org:8433 {
+aikidodojos.duckdns.org:8443 {
 	tls {
 		dns duckdns {env.DUCKDNS_TOKEN}
 	}
