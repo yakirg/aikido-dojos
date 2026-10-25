@@ -46,6 +46,36 @@ export const membershipsApi = {
 export const ranksApi = { list: () => request('/api/ranks') };
 
 export const locationsApi = {
-  countries: () => request('/api/countries'),
-  lookup: (country, postalCode) => request(`/api/locations/lookup${qs({ country, postalCode })}`),
+  countries: () => request('/api/countries').catch(localCountries),
+  lookup: (country, postalCode) =>
+    request(`/api/locations/lookup${qs({ country, postalCode })}`).catch(() => directLookup(country, postalCode)),
 };
+
+async function localCountries() {
+  const names = new Intl.DisplayNames(['en'], { type: 'region' });
+  const out = [];
+  for (let a = 65; a <= 90; a++) {
+    for (let b = 65; b <= 90; b++) {
+      const code = String.fromCharCode(a, b);
+      let name;
+      try { name = names.of(code); } catch { continue; }
+      if (name && name !== code && name !== 'Unknown Region') out.push({ code, name });
+    }
+  }
+  return out.sort((x, y) => x.name.localeCompare(y.name));
+}
+
+async function directLookup(country, postalCode) {
+  const zip = country.toUpperCase() === 'CA' ? postalCode.trim().slice(0, 3) : postalCode.trim();
+  const res = await fetch(`https://api.zippopotam.us/${country.toLowerCase()}/${encodeURIComponent(zip)}`);
+  if (!res.ok) throw new Error('Postal code not found');
+  const body = await res.json();
+  const p = body.places?.[0];
+  if (!p) throw new Error('Postal code not found');
+  return {
+    postalCode: body['post code'],
+    city: p['place name'],
+    state: p['state abbreviation'] || p.state,
+    country: body.country,
+  };
+}
