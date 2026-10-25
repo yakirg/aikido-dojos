@@ -31,6 +31,11 @@ test('lists dojos', async () => {
   expect(await screen.findByText('Tokyo')).toBeInTheDocument();
 });
 
+test('dojo name links to detail page', async () => {
+  render(<MemoryRouter initialEntries={['/dojos']}><App /></MemoryRouter>);
+  expect(await screen.findByText('Hombu Dojo')).toHaveAttribute('href', '/dojos/1/view');
+});
+
 test('lists practitioners with their dojo', async () => {
   render(<MemoryRouter initialEntries={['/practitioners']}><App /></MemoryRouter>);
   expect(await screen.findByText('Ann Zed')).toBeInTheDocument();

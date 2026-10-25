@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import Welcome from './pages/Welcome.jsx';
-import { DojoList, DojoForm } from './pages/Dojos.jsx';
+import { DojoList, DojoForm, DojoDetail } from './pages/Dojos.jsx';
 import { PractitionerList, PractitionerForm } from './pages/Practitioners.jsx';
 
 export default function App() {
   return (
     <>
+      <div className="banner" role="status">🚧 Under Construction — this site is a work in progress 🚧</div>
       <nav>
         <Link to="/">Home</Link>
         <Link to="/dojos">Dojos</Link>
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/" element={<Welcome />} />
           <Route path="/dojos" element={<DojoList />} />
           <Route path="/dojos/new" element={<DojoForm />} />
+          <Route path="/dojos/:id/view" element={<DojoDetail />} />
           <Route path="/dojos/:id" element={<DojoForm />} />
           <Route path="/practitioners" element={<PractitionerList />} />
           <Route path="/practitioners/new" element={<PractitionerForm />} />

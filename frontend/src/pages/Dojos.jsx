@@ -35,7 +35,7 @@ export function DojoList() {
         <tbody>
           {dojos.map((d) => (
             <tr key={d.id}>
-              <td><Link to={`/practitioners?dojoId=${d.id}`}>{d.name}</Link></td>
+              <td><Link to={`/dojos/${d.id}/view`}>{d.name}</Link></td>
               <td>{d.city}</td>
               <td>{d.state}</td>
               <td>{d.country}</td>
@@ -49,6 +49,53 @@ export function DojoList() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+export function DojoDetail() {
+  const { id } = useParams();
+  const [dojo, setDojo] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    dojosApi.get(id).then(setDojo).catch((e) => setError(e.message));
+    membershipsApi.forDojo(id).then(setMembers).catch(() => {});
+  }, [id]);
+
+  if (error) return <p className="error">{error}</p>;
+  if (!dojo) return <p>Loading…</p>;
+
+  const location = [dojo.address, dojo.city, dojo.state, dojo.postalCode, dojo.country].filter(Boolean).join(', ');
+  return (
+    <div>
+      <h1>{dojo.name}</h1>
+      <dl>
+        <dt>Location</dt><dd>{location || '—'}</dd>
+        <dt>Founded</dt><dd>{dojo.foundedDate || '—'}</dd>
+        <dt>Founder</dt>
+        <dd>{dojo.founderId ? <Link to={`/practitioners/${dojo.founderId}`}>{dojo.founderName}</Link> : '—'}</dd>
+        <dt>Website</dt>
+        <dd>{dojo.website ? <a href={dojo.website} target="_blank" rel="noreferrer">{dojo.website}</a> : '—'}</dd>
+      </dl>
+      <h2>Practitioners</h2>
+      {members.length === 0 ? <p>No practitioners yet.</p> : (
+        <table>
+          <thead><tr><th>Name</th><th>From</th><th>To</th></tr></thead>
+          <tbody>
+            {members.map((m) => (
+              <tr key={m.id}>
+                <td><Link to={`/practitioners/${m.practitionerId}`}>{m.practitionerName}</Link></td>
+                <td>{m.startDate || '?'}</td>
+                <td>{m.endDate || 'present'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <Link className="btn" to={`/dojos/${id}`}>Edit dojo</Link>
+      <Link to="/dojos">Back to dojos</Link>
     </div>
   );
 }
