@@ -78,6 +78,20 @@ class ApiTest {
     }
 
     @Test
+    void dojoFounderAndFoundedDate() throws Exception {
+        long f = create("/api/practitioners", Map.of("firstName", "Mo", "lastName", "Founder"));
+        long d = create("/api/dojos", Map.of("name", "Founded Dojo", "country", "USA",
+                "foundedDate", "1998-04-12", "founderId", f));
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.foundedDate").value("1998-04-12"))
+                .andExpect(jsonPath("$.founderName").value("Mo Founder"));
+        mvc.perform(post("/api/dojos").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("name", "X", "country", "Y", "founderId", 99999))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/practitioners/" + f)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.founderId").doesNotExist());
+    }
+
+    @Test
     void invalidMembershipRejected() throws Exception {
         long d = create("/api/dojos", Map.of("name", "Bad Dates", "country", "USA"));
         long p = create("/api/practitioners", Map.of("firstName", "A", "lastName", "B"));

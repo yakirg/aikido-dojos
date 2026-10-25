@@ -3,7 +3,10 @@ package com.aikido.dojos;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Data
 @Entity
@@ -21,5 +24,10 @@ public class Dojo {
     private String address;
     @Size(max = 300)
     private String website;
-    private Integer foundedYear;
+    private LocalDate foundedDate;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "founder_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Practitioner founder;
 }

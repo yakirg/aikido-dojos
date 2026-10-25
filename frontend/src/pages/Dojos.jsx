@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { dojosApi, membershipsApi } from '../api.js';
+import { dojosApi, membershipsApi, practitionersApi } from '../api.js';
 
 export function DojoList() {
   const [q, setQ] = useState('');
@@ -31,13 +31,15 @@ export function DojoList() {
       </div>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Name</th><th>City</th><th>Country</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>City</th><th>Country</th><th>Founded</th><th>Founder</th><th>Actions</th></tr></thead>
         <tbody>
           {dojos.map((d) => (
             <tr key={d.id}>
               <td><Link to={`/practitioners?dojoId=${d.id}`}>{d.name}</Link></td>
               <td>{d.city}</td>
               <td>{d.country}</td>
+              <td>{d.foundedDate}</td>
+              <td>{d.founderName}</td>
               <td>
                 <Link className="btn" to={`/dojos/${d.id}`}>Edit</Link>
                 <button onClick={() => remove(d)}>Delete</button>
@@ -50,16 +52,18 @@ export function DojoList() {
   );
 }
 
-const empty = { name: '', city: '', country: '', address: '', website: '', foundedYear: '' };
+const empty = { name: '', city: '', country: '', address: '', website: '', foundedDate: '', founderId: '' };
 
 export function DojoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(empty);
   const [members, setMembers] = useState([]);
+  const [practitioners, setPractitioners] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    practitionersApi.list().then(setPractitioners).catch(() => {});
     if (!id) return;
     dojosApi.get(id).then((d) => setForm({ ...empty, ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])) }))
       .catch((e) => setError(e.message));
@@ -70,7 +74,11 @@ export function DojoForm() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const data = { ...form, foundedYear: form.foundedYear === '' ? null : Number(form.foundedYear) };
+    const data = {
+      ...form,
+      foundedDate: form.foundedDate || null,
+      founderId: form.founderId === '' ? null : Number(form.founderId),
+    };
     try {
       if (id) await dojosApi.update(id, data); else await dojosApi.create(data);
       navigate('/dojos');
@@ -89,7 +97,13 @@ export function DojoForm() {
         <label>Country<input required value={form.country} onChange={set('country')} /></label>
         <label>Address<input value={form.address} onChange={set('address')} /></label>
         <label>Website<input value={form.website} onChange={set('website')} /></label>
-        <label>Founded year<input type="number" value={form.foundedYear} onChange={set('foundedYear')} /></label>
+        <label>Founded<input type="date" value={form.foundedDate} onChange={set('foundedDate')} /></label>
+        <label>Founder
+          <select value={form.founderId} onChange={set('founderId')}>
+            <option value="">Unknown</option>
+            {practitioners.map((p) => <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>)}
+          </select>
+        </label>
         <button type="submit">Save</button>
         <Link to="/dojos">Cancel</Link>
       </form>

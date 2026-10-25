@@ -3,7 +3,9 @@ package com.aikido.dojos;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -15,39 +17,51 @@ import org.springframework.web.server.ResponseStatusException;
 public class DojoController {
     public record DojoRequest(@NotBlank @Size(max = 200) String name, @Size(max = 100) String city,
                               @NotBlank @Size(max = 100) String country, @Size(max = 300) String address,
-                              @Size(max = 300) String website, Integer foundedYear) {}
+                              @Size(max = 300) String website, LocalDate foundedDate, Long founderId) {}
+
+    public record DojoResponse(Long id, String name, String city, String country, String address, String website,
+                               LocalDate foundedDate, Long founderId, String founderName) {
+        static DojoResponse of(Dojo d) {
+            Practitioner f = d.getFounder();
+            return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getCountry(), d.getAddress(),
+                    d.getWebsite(), d.getFoundedDate(), f == null ? null : f.getId(),
+                    f == null ? null : f.getFirstName() + " " + f.getLastName());
+        }
+    }
 
     private final DojoRepository dojos;
     private final MembershipRepository memberships;
+    private final PractitionerRepository practitioners;
 
-    DojoController(DojoRepository dojos, MembershipRepository memberships) {
+    DojoController(DojoRepository dojos, MembershipRepository memberships, PractitionerRepository practitioners) {
         this.dojos = dojos;
         this.memberships = memberships;
+        this.practitioners = practitioners;
     }
 
     @GetMapping
-    public List<Dojo> list(@RequestParam(required = false) String q) {
-        if (q == null || q.isBlank()) {
-            return dojos.findAll(org.springframework.data.domain.Sort.by("name"));
-        }
-        return dojos.findByNameContainingIgnoreCaseOrCityContainingIgnoreCaseOrCountryContainingIgnoreCaseOrderByName(
-                q, q, q);
+    public List<DojoResponse> list(@RequestParam(required = false) String q) {
+        List<Dojo> result = q == null || q.isBlank()
+                ? dojos.findAll(Sort.by("name"))
+                : dojos.findByNameContainingIgnoreCaseOrCityContainingIgnoreCaseOrCountryContainingIgnoreCaseOrderByName(
+                        q, q, q);
+        return result.stream().map(DojoResponse::of).toList();
     }
 
     @GetMapping("/{id}")
-    public Dojo get(@PathVariable Long id) {
-        return find(id);
+    public DojoResponse get(@PathVariable Long id) {
+        return DojoResponse.of(find(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Dojo create(@Valid @RequestBody DojoRequest r) {
-        return dojos.save(apply(new Dojo(), r));
+    public DojoResponse create(@Valid @RequestBody DojoRequest r) {
+        return DojoResponse.of(dojos.save(apply(new Dojo(), r)));
     }
 
     @PutMapping("/{id}")
-    public Dojo update(@PathVariable Long id, @Valid @RequestBody DojoRequest r) {
-        return dojos.save(apply(find(id), r));
+    public DojoResponse update(@PathVariable Long id, @Valid @RequestBody DojoRequest r) {
+        return DojoResponse.of(dojos.save(apply(find(id), r)));
     }
 
     @DeleteMapping("/{id}")
@@ -70,7 +84,9 @@ public class DojoController {
         d.setCountry(r.country());
         d.setAddress(r.address());
         d.setWebsite(r.website());
-        d.setFoundedYear(r.foundedYear());
+        d.setFoundedDate(r.foundedDate());
+        d.setFounder(r.founderId() == null ? null : practitioners.findById(r.founderId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown founderId")));
         return d;
     }
 }

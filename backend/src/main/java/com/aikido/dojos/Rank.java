@@ -1,13 +1,13 @@
 package com.aikido.dojos;
 
 public enum Rank {
-    ROKYU("6th kyu", "rokyu", "kyu", "Green Belt"),
-    GOKYU("5th kyu", "gokyu", "kyu", "Green Belt"),
+    ROKYU("6th kyu", "rokyu", "kyu", "Orange Belt"),
+    GOKYU("5th kyu", "gokyu", "kyu", "Orange Belt"),
     YONKYU("4th kyu", "yonkyu", "kyu", "Blue Belt"),
     SANKYU("3rd kyu", "sankyu", "kyu", "Blue Belt"),
-    NIKYU("2nd kyu", "nikyu", "kyu", "Brown Belt, Hakama"),
+    NIKYU("2nd kyu", "nikyu", "kyu", "Brown Belt"),
     IKKYU("1st kyu", "ikkyu", "kyu", "Brown Belt"),
-    SHODAN("1st dan", "shodan", "dan", "Black Belt"),
+    SHODAN("1st dan", "shodan", "dan", "Black Belt, Hakama"),
     NIDAN("2nd dan", "nidan", "dan", "Fuku-Shidoin (assistant instructor)"),
     SANDAN("3rd dan", "sandan", "dan", "Fuku-Shidoin (assistant instructor)"),
     YODAN("4th dan", "yodan", "dan", "Shidoin (instructor)"),
