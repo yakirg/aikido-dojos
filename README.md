@@ -2,7 +2,7 @@
 
 Track aikido dojos worldwide and the practitioners who train there.
 
-- `backend/` – Spring Boot 3 (Java 21), Spring Data JPA, Flyway, REST API
+- `backend/` – Spring Boot 3 (Java 21, Gradle), Spring Data JPA, Flyway, REST API
 - `frontend/` – React + Vite
 - Database: H2 file DB by default (dev); PostgreSQL via `docker-compose.yml`
 
@@ -12,7 +12,7 @@ Backend (http://localhost:8080), uses H2 (`backend/data/`):
 
 ```
 cd backend
-./mvnw spring-boot:run
+./gradlew bootRun
 ```
 
 With PostgreSQL:
@@ -20,7 +20,7 @@ With PostgreSQL:
 ```
 docker compose up -d
 cd backend
-DB_URL=jdbc:postgresql://localhost:5432/dojos DB_USER=dojos DB_PASSWORD=dojos ./mvnw spring-boot:run
+DB_URL=jdbc:postgresql://localhost:5432/dojos DB_USER=dojos DB_PASSWORD=dojos ./gradlew bootRun
 ```
 
 Frontend (http://localhost:5173, proxies `/api` to the backend):
@@ -34,7 +34,7 @@ npm run dev
 ## Test
 
 ```
-cd backend && ./mvnw test
+cd backend && ./gradlew test
 cd frontend && npm test
 ```
 
