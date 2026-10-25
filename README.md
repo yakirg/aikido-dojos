@@ -8,7 +8,7 @@ Track aikido dojos worldwide and the practitioners who train there.
 
 ## Run
 
-Backend (http://localhost:8080), uses H2 (`backend/data/`):
+Backend (http://localhost:8090), uses H2 (`backend/data/`):
 
 ```
 ./gradlew :backend:bootRun
