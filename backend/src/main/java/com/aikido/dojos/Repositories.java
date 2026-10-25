@@ -13,6 +13,9 @@ interface DojoRepository extends JpaRepository<Dojo, Long> {
 interface PractitionerRepository extends JpaRepository<Practitioner, Long>, JpaSpecificationExecutor<Practitioner> {
 }
 
+interface RankAwardRepository extends JpaRepository<RankAward, Long> {
+}
+
 interface MembershipRepository extends JpaRepository<Membership, Long> {
     boolean existsByDojoId(Long dojoId);
 

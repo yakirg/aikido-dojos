@@ -29,6 +29,7 @@ public class Dojo {
     @Size(max = 300)
     private String website;
     private LocalDate foundedDate;
+    private LocalDate closedDate;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "founder_id")
     @ToString.Exclude

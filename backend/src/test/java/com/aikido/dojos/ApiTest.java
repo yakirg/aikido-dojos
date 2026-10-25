@@ -82,14 +82,33 @@ class ApiTest {
     void dojoFounderAndFoundedDate() throws Exception {
         long f = create("/api/practitioners", Map.of("firstName", "Mo", "lastName", "Founder"));
         long d = create("/api/dojos", Map.of("name", "Founded Dojo", "country", "USA",
-                "foundedDate", "1998-04-12", "founderId", f));
+                "foundedDate", "1998-04-12", "closedDate", "2010-06-30", "founderId", f));
         mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.foundedDate").value("1998-04-12"))
+                .andExpect(jsonPath("$.closedDate").value("2010-06-30"))
                 .andExpect(jsonPath("$.founderName").value("Mo Founder"));
         mvc.perform(post("/api/dojos").contentType(MediaType.APPLICATION_JSON)
                 .content(om.writeValueAsString(Map.of("name", "X", "country", "Y", "founderId", 99999))))
                 .andExpect(status().isBadRequest());
         mvc.perform(delete("/api/practitioners/" + f)).andExpect(status().isNoContent());
         mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.founderId").doesNotExist());
+    }
+
+    @Test
+    void rankHistoryTracksPreviousRanks() throws Exception {
+        long p = create("/api/practitioners", Map.of("firstName", "Rae", "lastName", "Hist"));
+        long a1 = create("/api/practitioners/" + p + "/rank-awards", Map.of("rank", "IKKYU", "awardedDate", "2015-01-01"));
+        create("/api/practitioners/" + p + "/rank-awards", Map.of("rank", "SHODAN", "awardedDate", "2018-06-01"));
+        mvc.perform(get("/api/practitioners/" + p)).andExpect(jsonPath("$.rank").value("SHODAN"))
+                .andExpect(jsonPath("$.rankHistory.length()").value(2))
+                .andExpect(jsonPath("$.rankHistory[0].rank").value("SHODAN"))
+                .andExpect(jsonPath("$.rankHistory[1].awardedDate").value("2015-01-01"));
+        mvc.perform(put("/api/rank-awards/" + a1).contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("rank", "NIDAN", "awardedDate", "2020-01-01"))))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/practitioners/" + p)).andExpect(jsonPath("$.rank").value("NIDAN"));
+        mvc.perform(delete("/api/rank-awards/" + a1)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/practitioners/" + p)).andExpect(jsonPath("$.rank").value("SHODAN"))
+                .andExpect(jsonPath("$.rankHistory.length()").value(1));
     }
 
     @Test

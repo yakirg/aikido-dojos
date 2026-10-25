@@ -43,10 +43,17 @@ export const membershipsApi = {
   remove: (id) => request(`/api/memberships/${id}`, { method: 'DELETE' }),
 };
 
+export const rankAwardsApi = {
+  create: (practitionerId, data) =>
+    request(`/api/practitioners/${practitionerId}/rank-awards`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => request(`/api/rank-awards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id) => request(`/api/rank-awards/${id}`, { method: 'DELETE' }),
+};
+
 export const ranksApi = { list: () => request('/api/ranks') };
 
 export const locationsApi = {
-  countries: () => request('/api/countries').catch(localCountries),
+  countries: () => request('/api/countries').catch(localCountries).then(usFirst),
   lookup: (country, postalCode) =>
     request(`/api/locations/lookup${qs({ country, postalCode })}`).catch(() => directLookup(country, postalCode)),
 };
@@ -78,4 +85,11 @@ async function directLookup(country, postalCode) {
     state: p['state abbreviation'] || p.state,
     country: body.country,
   };
+}
+
+export const ZIP_LOOKUP_COUNTRIES = new Set('AD AR AS AT AU AX BD BE BG BR BY CA CH CO CZ DE DK DO DZ ES FI FO FR GB GF GG GL GP GT GU HR HU IE IM IN IS IT JE JP LI LK LT LU LV MC MD MH MK MP MQ MT MX MY NC NL NO NZ PH PK PL PM PR PT PW RE RO RU SE SI SJ SK SM TH TR UA US UY VA VI YT ZA'.split(' '));
+
+function usFirst(list) {
+  const arr = Array.isArray(list) ? list : [];
+  return [...arr.filter((c) => c.code === 'US'), ...arr.filter((c) => c.code !== 'US')];
 }

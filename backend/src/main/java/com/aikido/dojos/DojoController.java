@@ -18,15 +18,15 @@ import org.springframework.web.server.ResponseStatusException;
 public class DojoController {
     public record DojoRequest(@NotBlank @Size(max = 200) String name, @Size(max = 100) String city, @Size(max = 100) String state,
                               @NotBlank @Size(max = 100) String country, @Size(max = 300) String address,
-                              @Size(max = 20) String postalCode, @Size(max = 300) String website, LocalDate foundedDate, Long founderId) {}
+                              @Size(max = 20) String postalCode, @Size(max = 300) String website, LocalDate foundedDate, LocalDate closedDate, Long founderId) {}
 
     public record DojoResponse(Long id, String name, String city, String state, String postalCode, String country,
-                               String address, String website, LocalDate foundedDate, Long founderId,
+                               String address, String website, LocalDate foundedDate, LocalDate closedDate, Long founderId,
                                String founderName) {
         static DojoResponse of(Dojo d) {
             Practitioner f = d.getFounder();
             return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getState(), d.getPostalCode(), d.getCountry(), d.getAddress(),
-                    d.getWebsite(), d.getFoundedDate(), f == null ? null : f.getId(),
+                    d.getWebsite(), d.getFoundedDate(), d.getClosedDate(), f == null ? null : f.getId(),
                     f == null ? null : f.getFirstName() + " " + f.getLastName());
         }
     }
@@ -89,6 +89,7 @@ public class DojoController {
         d.setAddress(r.address());
         d.setWebsite(r.website());
         d.setFoundedDate(r.foundedDate());
+        d.setClosedDate(r.closedDate());
         d.setFounder(r.founderId() == null ? null : practitioners.findById(r.founderId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown founderId")));
         return d;

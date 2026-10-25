@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { dojosApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
+import MembershipEditor from '../components/MembershipEditor.jsx';
+import { ZIP_LOOKUP_COUNTRIES, dojosApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
 
 export function DojoList() {
   const [q, setQ] = useState('');
@@ -74,6 +75,7 @@ export function DojoDetail() {
       <dl>
         <dt>Location</dt><dd>{location || '—'}</dd>
         <dt>Founded</dt><dd>{dojo.foundedDate || '—'}</dd>
+        <dt>Closed</dt><dd>{dojo.closedDate || '—'}</dd>
         <dt>Founder</dt>
         <dd>{dojo.founderId ? <Link to={`/practitioners/${dojo.founderId}`}>{dojo.founderName}</Link> : '—'}</dd>
         <dt>Website</dt>
@@ -100,17 +102,19 @@ export function DojoDetail() {
   );
 }
 
-const empty = { name: '', city: '', state: '', postalCode: '', country: '', address: '', website: '', foundedDate: '', founderId: '' };
+const empty = { name: '', city: '', state: '', postalCode: '', country: '', address: '', website: '', foundedDate: '', closedDate: '', founderId: '' };
 
 export function DojoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [form, setForm] = useState(empty);
+  const [form, setForm] = useState({ ...empty, country: 'United States' });
   const [members, setMembers] = useState([]);
   const [practitioners, setPractitioners] = useState([]);
   const [error, setError] = useState('');
   const [countries, setCountries] = useState([]);
   const [lookupMsg, setLookupMsg] = useState('');
+
+  const zipSupported = ZIP_LOOKUP_COUNTRIES.has(countries.find((c) => c.name === form.country)?.code);
 
   const lookup = async () => {
     const match = countries.find((c) => c.name === form.country);
@@ -130,9 +134,10 @@ export function DojoForm() {
     if (!id) return;
     dojosApi.get(id).then((d) => setForm({ ...empty, ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])) }))
       .catch((e) => setError(e.message));
-    membershipsApi.forDojo(id).then(setMembers).catch(() => {});
+    loadMembers();
   }, [id]);
 
+  const loadMembers = () => membershipsApi.forDojo(id).then(setMembers).catch(() => {});
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
@@ -140,6 +145,7 @@ export function DojoForm() {
     const data = {
       ...form,
       foundedDate: form.foundedDate || null,
+      closedDate: form.closedDate || null,
       founderId: form.founderId === '' ? null : Number(form.founderId),
     };
     try {
@@ -166,15 +172,16 @@ export function DojoForm() {
         </label>
         <label>Postal / ZIP code
           <input value={form.postalCode} onChange={set('postalCode')}
-            onBlur={() => form.postalCode && !form.city && lookup()} />
+            onBlur={() => zipSupported && form.postalCode && !form.city && lookup()} />
         </label>
-        <button type="button" onClick={lookup} disabled={!form.postalCode}>Look up address</button>
+        {zipSupported && <button type="button" onClick={lookup} disabled={!form.postalCode}>Look up address</button>}
         {lookupMsg && <p className="error">{lookupMsg}</p>}
         <label>City<input value={form.city} onChange={set('city')} /></label>
         <label>State / Province<input value={form.state} onChange={set('state')} /></label>
         <label>Address<input value={form.address} onChange={set('address')} /></label>
         <label>Website<input value={form.website} onChange={set('website')} /></label>
         <label>Founded<input type="date" value={form.foundedDate} onChange={set('foundedDate')} /></label>
+        <label>Closed<input type="date" value={form.closedDate} onChange={set('closedDate')} /></label>
         <label>Founder
           <select value={form.founderId} onChange={set('founderId')}>
             <option value="">Unknown</option>
@@ -185,18 +192,7 @@ export function DojoForm() {
         <Link to="/dojos">Cancel</Link>
       </form>
       {id && (
-        <>
-          <h2>Practitioners</h2>
-          <ul>
-            {members.map((m) => (
-              <li key={m.id}>
-                <Link to={`/practitioners/${m.practitionerId}`}>{m.practitionerName}</Link>
-                {' '}({m.startDate || '?'} – {m.endDate || 'present'})
-              </li>
-            ))}
-          </ul>
-          <Link className="btn" to="/practitioners">Manage practitioners</Link>
-        </>
+        <MembershipEditor mode="dojo" ownerId={id} items={members} options={practitioners} onChange={loadMembers} />
       )}
     </div>
   );

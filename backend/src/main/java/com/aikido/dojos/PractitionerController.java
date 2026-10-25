@@ -26,10 +26,13 @@ public class PractitionerController {
                                       LocalDate startDate) {}
 
     public record PractitionerResponse(Long id, String firstName, String lastName, String email, Rank rank,
-                                       LocalDate startDate, List<MembershipResponse> memberships) {
+                                       LocalDate startDate, List<MembershipResponse> memberships,
+                                       List<RankAwardController.RankAwardResponse> rankHistory) {
         static PractitionerResponse of(Practitioner p) {
             return new PractitionerResponse(p.getId(), p.getFirstName(), p.getLastName(), p.getEmail(), p.getRank(),
-                    p.getStartDate(), p.getMemberships().stream().map(MembershipResponse::of).toList());
+                    p.getStartDate(), p.getMemberships().stream().map(MembershipResponse::of).toList(),
+                    p.getRankAwards().stream().sorted(RankAwardController.NEWEST_FIRST)
+                            .map(RankAwardController.RankAwardResponse::of).toList());
         }
     }
 
@@ -91,7 +94,14 @@ public class PractitionerController {
         p.setFirstName(r.firstName());
         p.setLastName(r.lastName());
         p.setEmail(r.email());
-        p.setRank(r.rank());
+        if (r.rank() != null && r.rank() != p.getRank()) {
+            RankAward a = new RankAward();
+            a.setPractitioner(p);
+            a.setRank(r.rank());
+            a.setAwardedDate(LocalDate.now());
+            p.getRankAwards().add(a);
+            p.setRank(r.rank());
+        }
         p.setStartDate(r.startDate());
         return p;
     }

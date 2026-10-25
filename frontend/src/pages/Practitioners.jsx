@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { dojosApi, membershipsApi, practitionersApi, ranksApi } from '../api.js';
+import { dojosApi, practitionersApi, ranksApi } from '../api.js';
+import RankHistory from '../components/RankHistory.jsx';
+import MembershipEditor from '../components/MembershipEditor.jsx';
 
 const rankLabel = (ranks, code) => {
   const r = ranks.find((x) => x.code === code);
@@ -72,8 +74,6 @@ export function PractitionerList() {
 
 
 const empty = { firstName: '', lastName: '', email: '', rank: '', startDate: '' };
-const emptyMembership = { dojoId: '', startDate: '', endDate: '' };
-
 export function PractitionerForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -81,7 +81,7 @@ export function PractitionerForm() {
   const [dojos, setDojos] = useState([]);
   const [ranks, setRanks] = useState([]);
   const [memberships, setMemberships] = useState([]);
-  const [newMembership, setNewMembership] = useState(emptyMembership);
+  const [rankHistory, setRankHistory] = useState([]);
   const [error, setError] = useState('');
 
   const load = () =>
@@ -91,6 +91,7 @@ export function PractitionerForm() {
         startDate: p.startDate ?? '',
       });
       setMemberships(p.memberships);
+      setRankHistory(p.rankHistory || []);
     }).catch((e) => setError(e.message));
 
   useEffect(() => {
@@ -100,7 +101,6 @@ export function PractitionerForm() {
   }, [id]);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const setM = (k) => (e) => setNewMembership({ ...newMembership, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -118,44 +118,6 @@ export function PractitionerForm() {
     }
   };
 
-  const addMembership = async (e) => {
-    e.preventDefault();
-    try {
-      await membershipsApi.create(id, {
-        dojoId: Number(newMembership.dojoId),
-        startDate: newMembership.startDate || null,
-        endDate: newMembership.endDate || null,
-      });
-      setNewMembership(emptyMembership);
-      setError('');
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const endMembership = async (m) => {
-    const endDate = window.prompt('End date (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
-    if (!endDate) return;
-    try {
-      await membershipsApi.update(m.id, { dojoId: m.dojoId, startDate: m.startDate, endDate });
-      setError('');
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const removeMembership = async (m) => {
-    if (!window.confirm(`Remove membership at ${m.dojoName}?`)) return;
-    try {
-      await membershipsApi.remove(m.id);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   return (
     <div>
       <h1>{id ? 'Edit practitioner' : 'New practitioner'}</h1>
@@ -164,50 +126,23 @@ export function PractitionerForm() {
         <label>First name<input required value={form.firstName} onChange={set('firstName')} /></label>
         <label>Last name<input required value={form.lastName} onChange={set('lastName')} /></label>
         <label>Email<input type="email" value={form.email} onChange={set('email')} /></label>
-        <label>Rank
-          <select value={form.rank} onChange={set('rank')}>
-            <option value="">Unranked</option>
-            {ranks.map((r) => <option key={r.code} value={r.code}>{rankLabel([r], r.code)}  -  {r.title}</option>)}
-          </select>
-        </label>
+        {id ? (
+          <p>Current rank: <strong>{form.rank ? rankLabel(ranks, form.rank) : 'Unranked'}</strong> (edit under Rank history)</p>
+        ) : (
+          <label>Rank
+            <select value={form.rank} onChange={set('rank')}>
+              <option value="">Unranked</option>
+              {ranks.map((r) => <option key={r.code} value={r.code}>{rankLabel([r], r.code)}  -  {r.title}</option>)}
+            </select>
+          </label>
+        )}
         <label>Started aikido<input type="date" value={form.startDate} onChange={set('startDate')} /></label>
         <button type="submit">Save</button>
         <Link to="/practitioners">Cancel</Link>
       </form>
+      {id && <RankHistory practitionerId={id} history={rankHistory} ranks={ranks} onChange={load} />}
       {id && (
-        <>
-          <h2>Dojo memberships</h2>
-          <table>
-            <thead><tr><th>Dojo</th><th>From</th><th>To</th><th>Actions</th></tr></thead>
-            <tbody>
-              {memberships.map((m) => (
-                <tr key={m.id}>
-                  <td>{m.dojoName}</td>
-                  <td>{m.startDate}</td>
-                  <td>{m.endDate || 'present'}</td>
-                  <td>
-                    {!m.endDate && <button onClick={() => endMembership(m)}>End</button>}
-                    <button onClick={() => removeMembership(m)}>Remove</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <h3>Add membership</h3>
-          <form onSubmit={addMembership}>
-            <label>Dojo
-              <select required value={newMembership.dojoId} onChange={setM('dojoId')}>
-                <option value="">Select dojo</option>
-                {dojos.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </label>
-            <label>From<input type="date" value={newMembership.startDate} onChange={setM('startDate')} /></label>
-            <label>To (blank if current)
-              <input type="date" value={newMembership.endDate} onChange={setM('endDate')} />
-            </label>
-            <button type="submit">Add</button>
-          </form>
-        </>
+        <MembershipEditor mode="practitioner" ownerId={id} items={memberships} options={dojos} onChange={load} />
       )}
     </div>
   );
