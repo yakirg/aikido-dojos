@@ -85,7 +85,7 @@ test('practitioner edit page shows rank history', async () => {
       : [];
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
   });
-  render(<MemoryRouter initialEntries={['/practitioners/2']}><App /></MemoryRouter>);
+  render(<MemoryRouter initialEntries={['/practitioners/2/edit']}><App /></MemoryRouter>);
   expect(await screen.findByText('Rank history')).toBeInTheDocument();
   expect(await screen.findByDisplayValue('2015-01-01')).toBeInTheDocument();
   expect(screen.getByDisplayValue('2018-06-01')).toBeInTheDocument();
@@ -101,4 +101,18 @@ test('shows a pending-approval notice when an edit is queued', async () => {
   fireEvent.change(await screen.findByLabelText(/^Name/), { target: { value: 'New Dojo' } });
   fireEvent.click(screen.getByRole('button', { name: /save|create/i }));
   expect(await screen.findByText(/Awaiting approval/)).toBeInTheDocument();
+});
+
+test('practitioner view page is read-only with an edit link', async () => {
+  global.fetch = vi.fn((url) => {
+    const u = String(url);
+    const body = u.startsWith('/api/practitioners/2') ? { id: 2, firstName: 'Ann', lastName: 'Zed', rank: null, memberships: [{ id: 1, dojoId: 1, dojoName: 'Hombu Dojo', startDate: '2020', endDate: null }], rankHistory: [] }
+      : [];
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  });
+  render(<MemoryRouter initialEntries={['/practitioners/2']}><App /></MemoryRouter>);
+  expect(await screen.findByText('Ann Zed')).toBeInTheDocument();
+  expect(screen.getByText('Hombu Dojo')).toHaveAttribute('href', '/dojos/1/view');
+  expect(screen.getByText('Edit practitioner')).toHaveAttribute('href', '/practitioners/2/edit');
+  expect(screen.queryByText('Save')).toBeNull();
 });

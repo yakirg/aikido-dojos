@@ -122,7 +122,7 @@ export function DojoDetail() {
         </table>
       )}
       <Link className="btn" to={`/dojos/${id}`}>Edit dojo</Link>
-      <Link to="/dojos">Back to dojos</Link>
+      <Link className="btn" to="/dojos">Back to dojos</Link>
     </div>
   );
 }

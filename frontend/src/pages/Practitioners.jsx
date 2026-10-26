@@ -57,11 +57,11 @@ export function PractitionerList() {
         <tbody>
           {items.map((p) => (
             <tr key={p.id}>
-              <td>{p.firstName} {p.lastName}</td>
+              <td><Link to={`/practitioners/${p.id}`}>{p.firstName} {p.lastName}</Link></td>
               <td>{rankLabel(ranks, p.rank)}</td>
               <td>{currentDojos(p)}</td>
               <td>
-                <Link className="btn" to={`/practitioners/${p.id}`}>Edit</Link>
+                <Link className="btn" to={`/practitioners/${p.id}/edit`}>Edit</Link>
                 <button onClick={() => remove(p)}>Delete</button>
               </td>
             </tr>
@@ -72,7 +72,61 @@ export function PractitionerList() {
   );
 }
 
+export function PractitionerDetail() {
+  const { id } = useParams();
+  const [p, setP] = useState(null);
+  const [ranks, setRanks] = useState([]);
+  const [error, setError] = useState('');
 
+  useEffect(() => {
+    ranksApi.list().then(setRanks).catch(() => {});
+    practitionersApi.get(id).then(setP).catch((e) => setError(e.message));
+  }, [id]);
+
+  if (error) return <p className="error">{error}</p>;
+  if (!p) return <p>Loading...</p>;
+
+  const memberships = [...(p.memberships || [])].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+  const history = [...(p.rankHistory || [])].sort((a, b) => (b.awardedDate || '').localeCompare(a.awardedDate || ''));
+  return (
+    <div>
+      <h1>{p.firstName} {p.lastName}</h1>
+      <dl>
+        <dt>Rank</dt><dd>{p.rank ? rankLabel(ranks, p.rank) : 'Unranked'}</dd>
+        <dt>Started aikido</dt><dd>{p.startDate || '-'}</dd>
+        <dt>Email</dt><dd>{p.email || '-'}</dd>
+      </dl>
+      <h2>Dojos</h2>
+      {memberships.length === 0 ? <p>No dojos yet.</p> : (
+        <table>
+          <thead><tr><th>Dojo</th><th>From</th><th>To</th></tr></thead>
+          <tbody>
+            {memberships.map((m) => (
+              <tr key={m.id}>
+                <td><Link to={`/dojos/${m.dojoId}/view`}>{m.dojoName}</Link></td>
+                <td>{m.startDate || '?'}</td>
+                <td>{m.endDate || 'present'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <h2>Rank history</h2>
+      {history.length === 0 ? <p>No rank history yet.</p> : (
+        <table>
+          <thead><tr><th>Rank</th><th>Awarded</th></tr></thead>
+          <tbody>
+            {history.map((h) => (
+              <tr key={h.id}><td>{rankLabel(ranks, h.rank) || h.rank}</td><td>{h.awardedDate || '?'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <Link className="btn" to={`/practitioners/${id}/edit`}>Edit practitioner</Link>
+      <Link className="btn" to="/practitioners">Back to practitioners</Link>
+    </div>
+  );
+}
 const empty = { firstName: '', lastName: '', email: '', rank: '', startDate: '' };
 export function PractitionerForm() {
   const { id } = useParams();
@@ -111,7 +165,7 @@ export function PractitionerForm() {
         navigate('/practitioners');
       } else {
         const created = await practitionersApi.create(data);
-        navigate(created.pending ? '/practitioners' : `/practitioners/${created.id}`);
+        navigate(created.pending ? '/practitioners' : `/practitioners/${created.id}/edit`);
       }
     } catch (err) {
       setError(err.message);

@@ -3,7 +3,7 @@ import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import Timeline from './pages/Timeline.jsx';
 import Welcome from './pages/Welcome.jsx';
 import { DojoList, DojoForm, DojoDetail } from './pages/Dojos.jsx';
-import { PractitionerList, PractitionerForm } from './pages/Practitioners.jsx';
+import { PractitionerList, PractitionerForm, PractitionerDetail } from './pages/Practitioners.jsx';
 import { authApi, changesApi } from './api.js';
 import Login from './pages/Login.jsx';
 import ReviewEdits from './pages/ReviewEdits.jsx';
@@ -74,7 +74,8 @@ export default function App() {
           <Route path="/dojos/:id" element={<DojoForm />} />
           <Route path="/practitioners" element={<PractitionerList />} />
           <Route path="/practitioners/new" element={<PractitionerForm />} />
-          <Route path="/practitioners/:id" element={<PractitionerForm />} />
+          <Route path="/practitioners/:id" element={<PractitionerDetail />} />
+          <Route path="/practitioners/:id/edit" element={<PractitionerForm />} />
         </Routes>
       </main>
     </>
