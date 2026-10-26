@@ -14,8 +14,10 @@ export default function Login({ onLogin }) {
       await authApi.login(username, password);
       await onLogin();
       navigate('/changes');
-    } catch {
-      setError('Invalid username or password');
+    } catch (err) {
+      setError(/^401/.test(err.message) || err.message === 'Invalid input' || err.message === 'Please log in'
+        ? 'Invalid username or password'
+        : `Login failed: ${err.message}`);
     }
   };
 
