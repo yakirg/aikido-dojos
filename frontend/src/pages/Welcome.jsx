@@ -17,6 +17,7 @@ export default function Welcome() {
       <p>
         Or just browse: <Link to="/dojos">dojos</Link> · <Link to="/practitioners">practitioners</Link>
       </p>
+      <p className="meta"><Link to="/login">Admin login</Link></p>
     </div>
   );
 }

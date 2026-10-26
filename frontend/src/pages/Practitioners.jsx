@@ -111,7 +111,7 @@ export function PractitionerForm() {
         navigate('/practitioners');
       } else {
         const created = await practitionersApi.create(data);
-        navigate(`/practitioners/${created.id}`);
+        navigate(created.pending ? '/practitioners' : `/practitioners/${created.id}`);
       }
     } catch (err) {
       setError(err.message);
@@ -136,7 +136,7 @@ export function PractitionerForm() {
             </select>
           </label>
         )}
-        <label>Started aikido<input type="date" value={form.startDate} onChange={set('startDate')} /></label>
+        <label>Started aikido<input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={form.startDate} onChange={set('startDate')} /></label>
         <button type="submit">Save</button>
         <Link to="/practitioners">Cancel</Link>
       </form>

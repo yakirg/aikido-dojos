@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import LeaderEditor from '../components/LeaderEditor.jsx';
 import MembershipEditor from '../components/MembershipEditor.jsx';
-import { ZIP_LOOKUP_COUNTRIES, dojosApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
+import { ZIP_LOOKUP_COUNTRIES, dojosApi, leadersApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
 
 export function DojoList() {
   const [q, setQ] = useState('');
@@ -32,7 +33,7 @@ export function DojoList() {
       </div>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Name</th><th>City</th><th>State</th><th>Country</th><th>Founded</th><th>Founder</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>City</th><th>State</th><th>Country</th><th>Founded</th><th>Founders</th><th>Actions</th></tr></thead>
         <tbody>
           {dojos.map((d) => (
             <tr key={d.id}>
@@ -41,7 +42,7 @@ export function DojoList() {
               <td>{d.state}</td>
               <td>{d.country}</td>
               <td>{d.foundedDate}</td>
-              <td>{d.founderName}</td>
+              <td>{(d.founders || []).map((f) => f.name).join(', ')}</td>
               <td>
                 <Link className="btn" to={`/dojos/${d.id}`}>Edit</Link>
                 <button onClick={() => remove(d)}>Delete</button>
@@ -58,9 +59,11 @@ export function DojoDetail() {
   const { id } = useParams();
   const [dojo, setDojo] = useState(null);
   const [members, setMembers] = useState([]);
+  const [leaders, setLeaders] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    leadersApi.forDojo(id).then(setLeaders).catch(() => {});
     dojosApi.get(id).then(setDojo).catch((e) => setError(e.message));
     membershipsApi.forDojo(id).then(setMembers).catch(() => {});
   }, [id]);
@@ -76,11 +79,33 @@ export function DojoDetail() {
         <dt>Location</dt><dd>{location || '—'}</dd>
         <dt>Founded</dt><dd>{dojo.foundedDate || '—'}</dd>
         <dt>Closed</dt><dd>{dojo.closedDate || '—'}</dd>
-        <dt>Founder</dt>
-        <dd>{dojo.founderId ? <Link to={`/practitioners/${dojo.founderId}`}>{dojo.founderName}</Link> : '—'}</dd>
+        <dt>Founders</dt>
+        <dd>
+          {dojo.founders?.length
+            ? dojo.founders.map((f, i) => (
+              <span key={f.id}>{i > 0 && ', '}<Link to={`/practitioners/${f.id}`}>{f.name}</Link></span>
+            ))
+            : '—'}
+        </dd>
         <dt>Website</dt>
         <dd>{dojo.website ? <a href={dojo.website} target="_blank" rel="noreferrer">{dojo.website}</a> : '—'}</dd>
       </dl>
+      <h2>Leaders</h2>
+      {leaders.length === 0 ? <p>No leaders recorded.</p> : (
+        <table>
+          <thead><tr><th>Name</th><th>From</th><th>To</th><th></th></tr></thead>
+          <tbody>
+            {leaders.map((l) => (
+              <tr key={l.id}>
+                <td><Link to={`/practitioners/${l.practitionerId}`}>{l.practitionerName}</Link></td>
+                <td>{l.startDate || '?'}</td>
+                <td>{l.endDate || 'present'}</td>
+                <td>{l.founder ? 'Founder' : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <h2>Practitioners</h2>
       {members.length === 0 ? <p>No practitioners yet.</p> : (
         <table>
@@ -102,7 +127,7 @@ export function DojoDetail() {
   );
 }
 
-const empty = { name: '', city: '', state: '', postalCode: '', country: '', address: '', website: '', foundedDate: '', closedDate: '', founderId: '' };
+const empty = { name: '', city: '', state: '', postalCode: '', country: '', address: '', website: '', foundedDate: '', closedDate: '' };
 
 export function DojoForm() {
   const { id } = useParams();
@@ -132,8 +157,10 @@ export function DojoForm() {
     locationsApi.countries().then((c) => setCountries(Array.isArray(c) ? c : [])).catch(() => {});
     practitionersApi.list().then(setPractitioners).catch(() => {});
     if (!id) return;
-    dojosApi.get(id).then((d) => setForm({ ...empty, ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])) }))
-      .catch((e) => setError(e.message));
+    dojosApi.get(id).then((d) => setForm({
+      ...empty,
+      ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v ?? ''])),
+    })).catch((e) => setError(e.message));
     loadMembers();
   }, [id]);
 
@@ -146,7 +173,6 @@ export function DojoForm() {
       ...form,
       foundedDate: form.foundedDate || null,
       closedDate: form.closedDate || null,
-      founderId: form.founderId === '' ? null : Number(form.founderId),
     };
     try {
       if (id) await dojosApi.update(id, data); else await dojosApi.create(data);
@@ -180,17 +206,12 @@ export function DojoForm() {
         <label>State / Province<input value={form.state} onChange={set('state')} /></label>
         <label>Address<input value={form.address} onChange={set('address')} /></label>
         <label>Website<input value={form.website} onChange={set('website')} /></label>
-        <label>Founded<input type="date" value={form.foundedDate} onChange={set('foundedDate')} /></label>
-        <label>Closed<input type="date" value={form.closedDate} onChange={set('closedDate')} /></label>
-        <label>Founder
-          <select value={form.founderId} onChange={set('founderId')}>
-            <option value="">Unknown</option>
-            {practitioners.map((p) => <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>)}
-          </select>
-        </label>
+        <label>Founded<input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={form.foundedDate} onChange={set('foundedDate')} /></label>
+        <label>Closed<input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={form.closedDate} onChange={set('closedDate')} /></label>
         <button type="submit">Save</button>
         <Link to="/dojos">Cancel</Link>
       </form>
+      {id && <LeaderEditor dojoId={id} foundedDate={form.foundedDate} practitioners={practitioners} />}
       {id && (
         <MembershipEditor mode="dojo" ownerId={id} items={members} options={practitioners} onChange={loadMembers} />
       )}

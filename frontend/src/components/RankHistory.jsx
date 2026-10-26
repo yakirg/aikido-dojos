@@ -31,7 +31,7 @@ function Row({ a, ranks, onSaved, onError }) {
         </select>
       </td>
       <td>
-        <input type="date" aria-label="Awarded" value={draft.awardedDate}
+        <input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" aria-label="Awarded" value={draft.awardedDate}
           onChange={(e) => setDraft({ ...draft, awardedDate: e.target.value })} />
       </td>
       <td>
@@ -75,7 +75,7 @@ export default function RankHistory({ practitionerId, history, ranks, onChange }
           </select>
         </label>
         <label>Awarded
-          <input type="date" value={add.awardedDate} onChange={(e) => setAdd({ ...add, awardedDate: e.target.value })} />
+          <input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={add.awardedDate} onChange={(e) => setAdd({ ...add, awardedDate: e.target.value })} />
         </label>
         <button type="submit">Add</button>
       </form>

@@ -18,18 +18,21 @@ import org.springframework.web.server.ResponseStatusException;
 public class DojoController {
     public record DojoRequest(@NotBlank @Size(max = 200) String name, @Size(max = 100) String city, @Size(max = 100) String state,
                               @NotBlank @Size(max = 100) String country, @Size(max = 300) String address,
-                              @Size(max = 20) String postalCode, @Size(max = 300) String website, LocalDate foundedDate, LocalDate closedDate, Long founderId) {}
+                              @Size(max = 20) String postalCode, @Size(max = 300) String website, @PartialDates.Valid String foundedDate,                                                             @PartialDates.Valid String closedDate) {}
 
-    public record DojoResponse(Long id, String name, String city, String state, String postalCode, String country,
-                               String address, String website, LocalDate foundedDate, LocalDate closedDate, Long founderId,
-                               String founderName) {
-        static DojoResponse of(Dojo d) {
-            Practitioner f = d.getFounder();
-            return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getState(), d.getPostalCode(), d.getCountry(), d.getAddress(),
-                    d.getWebsite(), d.getFoundedDate(), d.getClosedDate(), f == null ? null : f.getId(),
-                    f == null ? null : f.getFirstName() + " " + f.getLastName());
-        }
-    }
+                                  public record FounderRef(Long id, String name) {}
+
+                                  public record DojoResponse(Long id, String name, String city, String state, String postalCode, String country,
+                                                             String address, String website, String foundedDate, String closedDate,
+                                                             List<FounderRef> founders) {
+                                      static DojoResponse of(Dojo d) {
+                                          List<FounderRef> f = d.getLeaders().stream().filter(DojoLeader::isFounder)
+                                                  .map(l -> l.getPractitioner())
+                                                  .map(p -> new FounderRef(p.getId(), p.getFirstName() + " " + p.getLastName())).distinct().toList();
+                                          return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getState(), d.getPostalCode(), d.getCountry(), d.getAddress(),
+                                                  d.getWebsite(), d.getFoundedDate(), d.getClosedDate(), f);
+                                      }
+                                  }
 
     private final DojoRepository dojos;
     private final MembershipRepository memberships;
@@ -90,8 +93,6 @@ public class DojoController {
         d.setWebsite(r.website());
         d.setFoundedDate(r.foundedDate());
         d.setClosedDate(r.closedDate());
-        d.setFounder(r.founderId() == null ? null : practitioners.findById(r.founderId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown founderId")));
         return d;
     }
 }

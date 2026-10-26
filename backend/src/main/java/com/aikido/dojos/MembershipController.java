@@ -14,10 +14,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api")
 @Transactional
 public class MembershipController {
-    public record MembershipRequest(@NotNull Long dojoId, LocalDate startDate, LocalDate endDate) {}
+    public record MembershipRequest(@NotNull Long dojoId, @PartialDates.Valid String startDate, @PartialDates.Valid String endDate) {}
 
     public record MembershipResponse(Long id, Long practitionerId, String practitionerName, Long dojoId,
-                                     String dojoName, LocalDate startDate, LocalDate endDate) {
+                                     String dojoName, String startDate, String endDate) {
         static MembershipResponse of(Membership m) {
             Practitioner p = m.getPractitioner();
             Dojo d = m.getDojo();
@@ -74,7 +74,7 @@ public class MembershipController {
     }
 
     private Membership apply(Membership m, MembershipRequest r) {
-        if (r.startDate() != null && r.endDate() != null && r.endDate().isBefore(r.startDate())) {
+        if (r.startDate() != null && r.endDate() != null && PartialDates.isBefore(r.endDate(), r.startDate())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endDate must not be before startDate");
         }
         m.setDojo(dojos.findById(r.dojoId())

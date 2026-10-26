@@ -21,3 +21,19 @@ interface MembershipRepository extends JpaRepository<Membership, Long> {
 
     List<Membership> findByDojoIdOrderByPractitionerLastNameAscPractitionerFirstNameAsc(Long dojoId);
 }
+
+interface DojoLeaderRepository extends JpaRepository<DojoLeader, Long> {
+    List<DojoLeader> findByDojoIdOrderByStartDateDesc(Long dojoId);
+}
+
+interface AppUserRepository extends JpaRepository<AppUser, Long> {
+    java.util.Optional<AppUser> findByUsernameIgnoreCase(String username);
+}
+
+interface ChangeRequestRepository extends JpaRepository<ChangeRequest, Long> {
+    List<ChangeRequest> findByStatusOrderBySubmittedAtDesc(ChangeRequest.Status status);
+
+    List<ChangeRequest> findAllByOrderBySubmittedAtDesc();
+
+    long countByStatus(ChangeRequest.Status status);
+}

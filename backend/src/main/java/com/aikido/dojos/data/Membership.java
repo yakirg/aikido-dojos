@@ -22,6 +22,8 @@ public class Membership {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Dojo dojo;
-    private LocalDate startDate;
-    private LocalDate endDate;
+    @Column(length = 10)
+    private String startDate;
+    @Column(length = 10)
+    private String endDate;
 }

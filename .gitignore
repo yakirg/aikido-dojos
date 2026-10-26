@@ -9,3 +9,6 @@ build/
 server.log
 server.err
 caddy.err
+
+service/
+logs/

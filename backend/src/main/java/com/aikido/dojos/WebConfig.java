@@ -9,8 +9,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig {
     @Bean
-    WebMvcConfigurer cors(@Value("${app.cors-origins:http://localhost:5173}") String[] origins) {
+    WebMvcConfigurer cors(@Value("${app.cors-origins:http://localhost:5173}") String[] origins,
+                          PendingEditInterceptor pendingEdits) {
         return new WebMvcConfigurer() {
+            @Override
+            public void addInterceptors(org.springframework.web.servlet.config.annotation.InterceptorRegistry registry) {
+                registry.addInterceptor(pendingEdits).addPathPatterns("/api/**");
+            }
+
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**").allowedOrigins(origins)

@@ -23,10 +23,10 @@ public class PractitionerController {
     public record PractitionerRequest(@NotBlank @Size(max = 100) String firstName,
                                       @NotBlank @Size(max = 100) String lastName,
                                       @Size(max = 200) String email, Rank rank,
-                                      LocalDate startDate) {}
+                                      @PartialDates.Valid String startDate) {}
 
     public record PractitionerResponse(Long id, String firstName, String lastName, String email, Rank rank,
-                                       LocalDate startDate, List<MembershipResponse> memberships,
+                                       String startDate, List<MembershipResponse> memberships,
                                        List<RankAwardController.RankAwardResponse> rankHistory) {
         static PractitionerResponse of(Practitioner p) {
             return new PractitionerResponse(p.getId(), p.getFirstName(), p.getLastName(), p.getEmail(), p.getRank(),
@@ -98,7 +98,7 @@ public class PractitionerController {
             RankAward a = new RankAward();
             a.setPractitioner(p);
             a.setRank(r.rank());
-            a.setAwardedDate(LocalDate.now());
+            a.setAwardedDate(LocalDate.now().toString());
             p.getRankAwards().add(a);
             p.setRank(r.rank());
         }

@@ -15,12 +15,12 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional
 public class RankAwardController {
     static final Comparator<RankAward> NEWEST_FIRST = Comparator
-            .comparing((RankAward a) -> a.getAwardedDate() == null ? LocalDate.MIN : a.getAwardedDate())
+            .comparing((RankAward a) -> a.getAwardedDate() == null ? "" : a.getAwardedDate())
             .thenComparing(RankAward::getRank).reversed();
 
-    public record RankAwardRequest(@NotNull Rank rank, LocalDate awardedDate) {}
+    public record RankAwardRequest(@NotNull Rank rank, @PartialDates.Valid String awardedDate) {}
 
-    public record RankAwardResponse(Long id, Long practitionerId, Rank rank, LocalDate awardedDate) {
+    public record RankAwardResponse(Long id, Long practitionerId, Rank rank, String awardedDate) {
         static RankAwardResponse of(RankAward a) {
             return new RankAwardResponse(a.getId(), a.getPractitioner().getId(), a.getRank(), a.getAwardedDate());
         }

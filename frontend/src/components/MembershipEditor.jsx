@@ -36,8 +36,8 @@ function Row({ m, mode, dojos, onSaved, onError }) {
             </select>
           )}
       </td>
-      <td><input type="date" aria-label="From" value={draft.startDate} onChange={set('startDate')} /></td>
-      <td><input type="date" aria-label="To" value={draft.endDate} onChange={set('endDate')} /></td>
+      <td><input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" aria-label="From" value={draft.startDate} onChange={set('startDate')} /></td>
+      <td><input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" aria-label="To" value={draft.endDate} onChange={set('endDate')} /></td>
       <td>
         <button type="button" onClick={save} disabled={!dirty}>Save</button>
         <button type="button" onClick={remove}>Remove</button>
@@ -88,9 +88,9 @@ export default function MembershipEditor({ mode, ownerId, items, options, onChan
             {options.map((o) => <option key={o.id} value={o.id}>{label(o)}</option>)}
           </select>
         </label>
-        <label>From<input type="date" value={add.startDate} onChange={(e) => setAdd({ ...add, startDate: e.target.value })} /></label>
+        <label>From<input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={add.startDate} onChange={(e) => setAdd({ ...add, startDate: e.target.value })} /></label>
         <label>To (blank if current)
-          <input type="date" value={add.endDate} onChange={(e) => setAdd({ ...add, endDate: e.target.value })} />
+          <input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={add.endDate} onChange={(e) => setAdd({ ...add, endDate: e.target.value })} />
         </label>
         <button type="submit">Add</button>
       </form>

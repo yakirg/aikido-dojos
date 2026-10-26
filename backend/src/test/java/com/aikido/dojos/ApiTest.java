@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
+@org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
 class ApiTest {
     @Autowired MockMvc mvc;
     @org.springframework.test.context.bean.override.mockito.MockitoBean ZipLookupClient zipLookup;
@@ -81,16 +82,30 @@ class ApiTest {
     @Test
     void dojoFounderAndFoundedDate() throws Exception {
         long f = create("/api/practitioners", Map.of("firstName", "Mo", "lastName", "Founder"));
+        long g = create("/api/practitioners", Map.of("firstName", "Al", "lastName", "Cofounder"));
         long d = create("/api/dojos", Map.of("name", "Founded Dojo", "country", "USA",
-                "foundedDate", "1998-04-12", "closedDate", "2010-06-30", "founderId", f));
+                "foundedDate", "1998-04-12", "closedDate", "2010-06-30"));
+        mvc.perform(post("/api/dojos/" + d + "/leaders").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("practitionerId", f, "startDate", "1998-04-12", "founder", true))))
+                .andExpect(status().isCreated());
+        long cof = create("/api/dojos/" + d + "/leaders", Map.of("practitionerId", g, "startDate", "1998", "founder", true));
+        long successor = create("/api/dojos/" + d + "/leaders", Map.of("practitionerId", g, "startDate", "2005", "endDate", "2008"));
+        mvc.perform(get("/api/dojos/" + d + "/leaders")).andExpect(jsonPath("$.length()").value(3));
+        mvc.perform(put("/api/leaders/" + successor).contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("practitionerId", g, "startDate", "2005", "endDate", "2001"))))
+                .andExpect(status().isBadRequest());
         mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.foundedDate").value("1998-04-12"))
                 .andExpect(jsonPath("$.closedDate").value("2010-06-30"))
-                .andExpect(jsonPath("$.founderName").value("Mo Founder"));
-        mvc.perform(post("/api/dojos").contentType(MediaType.APPLICATION_JSON)
-                .content(om.writeValueAsString(Map.of("name", "X", "country", "Y", "founderId", 99999))))
+                .andExpect(jsonPath("$.founders.length()").value(2))
+                .andExpect(jsonPath("$.founders[?(@.name=='Mo Founder')]").exists());
+        mvc.perform(post("/api/dojos/" + d + "/leaders").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("practitionerId", 99999))))
                 .andExpect(status().isBadRequest());
         mvc.perform(delete("/api/practitioners/" + f)).andExpect(status().isNoContent());
-        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.founderId").doesNotExist());
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.founders.length()").value(1));
+        mvc.perform(delete("/api/leaders/" + cof)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.founders.length()").value(0));
+        mvc.perform(delete("/api/dojos/" + d)).andExpect(status().isNoContent());
     }
 
     @Test
@@ -136,6 +151,19 @@ class ApiTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/api/practitioners/" + p + "/memberships").contentType(MediaType.APPLICATION_JSON)
                 .content(om.writeValueAsString(Map.of("dojoId", 99999))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void partialDatesAccepted() throws Exception {
+        long d = create("/api/dojos", Map.of("name", "Partial", "country", "USA", "foundedDate", "1998"));
+        long p = create("/api/practitioners", Map.of("firstName", "A", "lastName", "B"));
+        mvc.perform(post("/api/practitioners/" + p + "/memberships").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("dojoId", d, "startDate", "2009-05", "endDate", "2009"))))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.startDate").value("2009-05"));
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.foundedDate").value("1998"));
+        mvc.perform(post("/api/practitioners/" + p + "/memberships").contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("dojoId", d, "startDate", "2009-13"))))
                 .andExpect(status().isBadRequest());
     }
 }

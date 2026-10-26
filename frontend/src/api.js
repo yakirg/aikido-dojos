@@ -10,12 +10,39 @@ async function request(path, options = {}) {
     try {
       const body = await res.json();
       if (res.status === 400) message = 'Invalid input';
+      else if (res.status === 401) message = body.message || 'Please log in';
       else if (body.message) message = body.message;
     } catch { /* no body */ }
     throw new Error(message);
   }
+  if (res.status === 202) {
+    const body = await res.json().catch(() => ({}));
+    window.dispatchEvent(new CustomEvent('edit-pending', { detail: body.message || 'Submitted for approval.' }));
+    return { ...body, pending: true };
+  }
   return res.status === 204 ? null : res.json();
 }
+
+export const authApi = {
+  me: () => request('/api/auth/me'),
+  login: (username, password) => request('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  logout: () => request('/api/auth/logout', { method: 'POST' }),
+};
+
+export const changesApi = {
+  list: (status) => request(`/api/changes${status ? `?status=${status}` : ''}`),
+  count: () => request('/api/changes/count'),
+  approve: (id) => request(`/api/changes/${id}/approve`, { method: 'POST' }),
+  reject: (id, note) => request(`/api/changes/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+};
+
+export const adminUsersApi = {
+  list: () => request('/api/admin/users'),
+  create: (username, password, email) => request('/api/admin/users', { method: 'POST', body: JSON.stringify({ username, password, email: email || null }) }),
+  setEmail: (id, email) => request(`/api/admin/users/${id}/email`, { method: 'PUT', body: JSON.stringify({ email: email || null }) }),
+  setPassword: (id, password) => request(`/api/admin/users/${id}/password`, { method: 'PUT', body: JSON.stringify({ password }) }),
+  remove: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
+};
 
 const qs = (params) => {
   const s = new URLSearchParams();
@@ -34,6 +61,13 @@ const crud = (base) => ({
 
 export const dojosApi = crud('/api/dojos');
 export const practitionersApi = crud('/api/practitioners');
+
+export const leadersApi = {
+  forDojo: (dojoId) => request(`/api/dojos/${dojoId}/leaders`),
+  create: (dojoId, data) => request(`/api/dojos/${dojoId}/leaders`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => request(`/api/leaders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id) => request(`/api/leaders/${id}`, { method: 'DELETE' }),
+};
 
 export const membershipsApi = {
   forDojo: (dojoId) => request(`/api/dojos/${dojoId}/memberships`),

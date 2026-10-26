@@ -3,7 +3,8 @@ package com.aikido.dojos.data;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -28,11 +29,13 @@ public class Dojo {
     private String address;
     @Size(max = 300)
     private String website;
-    private LocalDate foundedDate;
-    private LocalDate closedDate;
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "founder_id")
+    @Column(length = 10)
+    private String foundedDate;
+    @Column(length = 10)
+    private String closedDate;
+    @OneToMany(mappedBy = "dojo")
+    @OrderBy("startDate")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Practitioner founder;
+    private List<DojoLeader> leaders = new ArrayList<>();
 }

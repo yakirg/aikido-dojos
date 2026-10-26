@@ -90,3 +90,15 @@ test('practitioner edit page shows rank history', async () => {
   expect(await screen.findByDisplayValue('2015-01-01')).toBeInTheDocument();
   expect(screen.getByDisplayValue('2018-06-01')).toBeInTheDocument();
 });
+
+test('shows a pending-approval notice when an edit is queued', async () => {
+  render(<MemoryRouter initialEntries={['/dojos/new']}><App /></MemoryRouter>);
+  const prev = global.fetch;
+  global.fetch = vi.fn((url, opts) => Promise.resolve(
+    opts?.method === 'POST'
+      ? { ok: true, status: 202, json: () => Promise.resolve({ pending: true, message: 'Awaiting approval' }) }
+      : prev(url, opts)));
+  fireEvent.change(await screen.findByLabelText(/^Name/), { target: { value: 'New Dojo' } });
+  fireEvent.click(screen.getByRole('button', { name: /save|create/i }));
+  expect(await screen.findByText(/Awaiting approval/)).toBeInTheDocument();
+});

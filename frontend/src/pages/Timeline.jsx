@@ -13,7 +13,7 @@ export function buildEvents(dojos, practitioners) {
     const name = `${p.firstName} ${p.lastName}`;
     const link = `/practitioners/${p.id}`;
     for (const a of p.rankHistory || []) {
-      if (a.awardedDate) events.push({ date: a.awardedDate, kind: 'rank', text: `${name} awarded ${a.rank}`, link });
+      if (a.awardedDate) events.push({ date: a.awardedDate, kind: 'rank', text: `${name} awarded ${(BELTS[a.rank] || [a.rank])[0]}`, link });
     }
     for (const m of p.memberships || []) {
       if (m.startDate) events.push({ date: m.startDate, kind: 'join', text: `${name} joined ${m.dojoName}`, link });
@@ -24,8 +24,15 @@ export function buildEvents(dojos, practitioners) {
 }
 
 const DAY = 86400000;
-const toMs = (s) => Date.parse(s);
+const toMs = (s) => Date.parse(s.length === 4 ? `${s}-01-01` : s.length === 7 ? `${s}-01` : s);
 const RIGHT = 40, TOP = 40, LANE = 64, MAX_ZOOM = 12;
+
+export const BELTS = {
+  ROKYU: ['6th kyu', '#f59e0b'], GOKYU: ['5th kyu', '#f59e0b'], YONKYU: ['4th kyu', '#2563eb'], SANKYU: ['3rd kyu', '#2563eb'],
+  NIKYU: ['2nd kyu', '#7c4a1e'], IKKYU: ['1st kyu', '#7c4a1e'], SHODAN: ['1st dan', '#111'], NIDAN: ['2nd dan', '#111'],
+  SANDAN: ['3rd dan', '#111'], YODAN: ['4th dan', '#111'], GODAN: ['5th dan', '#111'], ROKUDAN: ['6th dan', '#111'],
+  SHICHIDAN: ['7th dan', '#111'], HACHIDAN: ['8th dan', '#111'],
+};
 
 export function buildChart(dojos, practitioners, today = new Date().toISOString().slice(0, 10)) {
   const lanes = dojos.map((d) => {
@@ -41,7 +48,12 @@ export function buildChart(dojos, practitioners, today = new Date().toISOString(
       .filter((m) => m.startDate && laneIndex.has(m.dojoId))
       .map((m) => ({ lane: laneIndex.get(m.dojoId), from: m.startDate, to: m.endDate || today, dojoName: m.dojoName }))
       .sort((a, b) => a.from.localeCompare(b.from));
-    return { id: p.id, name: `${p.firstName} ${p.lastName}`, index: i, segments: ms };
+    const awards = (p.rankHistory || []).filter((a) => a.awardedDate && ms.length).map((a) => {
+      const seg = ms.find((s) => s.from <= a.awardedDate && a.awardedDate <= s.to)
+        || [...ms].reverse().find((s) => s.from <= a.awardedDate) || ms[0];
+      return { date: a.awardedDate, rank: a.rank, lane: seg.lane };
+    });
+    return { id: p.id, name: `${p.firstName} ${p.lastName}`, index: i, segments: ms, awards };
   }).filter((p) => p.segments.length);
 
   const dates = [...lanes.flatMap((l) => [l.from, l.to]), ...people.flatMap((p) => p.segments.flatMap((s) => [s.from, s.to]))]
@@ -52,6 +64,7 @@ export function buildChart(dojos, practitioners, today = new Date().toISOString(
 export function SwimlaneChart({ dojos, practitioners }) {
   const { lanes, people, min, max } = buildChart(dojos, practitioners);
   const [zoom, setZoom] = useState(1);
+  const [hidden, setHidden] = useState([]);
   const scrollRef = useRef(null);
   const anchor = useRef(null);
   const zoomRef = useRef(1);
@@ -136,6 +149,7 @@ export function SwimlaneChart({ dojos, practitioners }) {
         <button type="button" onClick={() => zoomTo(1)} disabled={zoom === 1}>Reset</button>
         <span>{Math.round(zoom * 100)}% · Ctrl+scroll or pinch to zoom</span>
       </div>
+    <div className="chart-layout">
     <div className="chart-scroll" ref={scrollRef}>
       <svg width={W} height={height} role="img" aria-label="Dojo swimlane timeline">
         {years.map((y) => {
@@ -162,7 +176,7 @@ export function SwimlaneChart({ dojos, practitioners }) {
             )}
           </g>
         ))}
-        {people.map((p) => {
+        {people.filter((p) => !hidden.includes(p.id)).map((p) => {
           const c = color(p.index);
           const yOf = (s) => laneY(s.lane) + offset(p.index);
           const first = [x(p.segments[0].from), yOf(p.segments[0])];
@@ -183,6 +197,17 @@ export function SwimlaneChart({ dojos, practitioners }) {
                   </g>
                 );
               })}
+              {p.awards.map((a, i) => {
+                const [label, fill] = BELTS[a.rank] || [a.rank, '#888'];
+                const bx = x(a.date), by = laneY(a.lane) + offset(p.index);
+                return (
+                  <g key={'a' + i} className="belt">
+                    <title>{`${p.name}: ${label} (${a.date})`}</title>
+                    <rect x={bx - 7} y={by - 3} width="14" height="6" rx="1" fill={fill} stroke="#fff" strokeWidth="1" />
+                    <rect x={bx - 2} y={by - 4.5} width="4" height="9" rx="1" fill={fill} stroke="#fff" strokeWidth="1" />
+                  </g>
+                );
+              })}
               <circle cx={first[0]} cy={first[1]} r="3.5" fill={c} />
               <a href={`#/practitioners/${p.id}`}>
                 <text x={first[0] + 6} y={first[1] - 5} fontSize="11" fill={c}>{p.name}</text>
@@ -192,6 +217,30 @@ export function SwimlaneChart({ dojos, practitioners }) {
         })}
       </svg>
     </div>
+    <aside className="chart-legend" aria-label="Legend">
+      {lanes.map((l, li) => {
+        const members = people.filter((p) => p.segments.some((s) => s.lane === li));
+        if (!members.length) return null;
+        return (
+          <details key={l.dojo.id} open>
+            <summary>
+              {l.dojo.name} <span className="count">({members.length})</span>
+            </summary>
+            <ul>
+              {members.map((p) => (
+                <li key={p.id}>
+                  <input type="checkbox" aria-label={`Show ${p.name}`} checked={!hidden.includes(p.id)}
+                    onChange={() => setHidden((h) => (h.includes(p.id) ? h.filter((x) => x !== p.id) : [...h, p.id]))} />
+                  <span className="swatch" style={{ background: color(p.index) }} />
+                  <a href={`#/practitioners/${p.id}`}>{p.name}</a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        );
+      })}
+    </aside>
+    </div>
     </div>
   );
 }
@@ -200,7 +249,7 @@ const labels = { 'dojo-open': 'Dojo opened', 'dojo-close': 'Dojo closed', join: 
 export default function Timeline() {
   const [events, setEvents] = useState([]);
   const [data, setData] = useState({ dojos: [], practitioners: [] });
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -209,17 +258,20 @@ export default function Timeline() {
       .catch((e) => setError(e.message));
   }, []);
 
-  const shown = events.filter((e) => !filter || e.kind === filter);
+  const toggle = (k) => setFilter((f) => (f.includes(k) ? f.filter((x) => x !== k) : [...f, k]));
+  const shown = events.filter((e) => filter.length === 0 || filter.includes(e.kind));
   return (
     <div>
       <h1>Timeline</h1>
       <SwimlaneChart dojos={data.dojos} practitioners={data.practitioners} />
       <h2>Events</h2>
-      <div className="toolbar">
-        <select aria-label="Filter events" value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="">All events</option>
-          {Object.entries(labels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+      <div className="toolbar event-filter" role="group" aria-label="Filter events">
+        {Object.entries(labels).map(([k, v]) => (
+          <label key={k}>
+            <input type="checkbox" checked={filter.includes(k)} onChange={() => toggle(k)} /> {v}
+          </label>
+        ))}
+        <button type="button" onClick={() => setFilter([])} disabled={filter.length === 0}>All events</button>
       </div>
       {error && <p className="error">{error}</p>}
       {shown.length === 0 ? <p>No dated events yet.</p> : (

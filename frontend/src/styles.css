@@ -1,5 +1,5 @@
 body { font-family: system-ui, sans-serif; margin: 0; background: #f6f6f3; color: #222; }
-nav { background: #1f2a44; padding: 12px 24px; display: flex; gap: 20px; }
+nav { background: #1f2a44; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
 nav a { color: #fff; text-decoration: none; font-weight: 600; }
 main { max-width: 960px; margin: 24px auto; padding: 0 16px; }
 table { width: 100%; border-collapse: collapse; background: #fff; }
@@ -24,3 +24,29 @@ button, .btn { padding: 6px 12px; margin-right: 6px; cursor: pointer; }
 .chart-scroll { touch-action: pan-x pan-y; }
 .zoom-controls { align-items: center; gap: 6px; }
 .zoom-controls span { color: #666; font-size: 12px; }
+
+.notice { background: #e6f4ea; color: #0b3d1a; padding: 8px 12px; text-align: center; border-bottom: 1px solid #b7dfc2; }
+.notice button { margin-left: 8px; }
+nav .spacer { flex: 1; }
+nav button.link { background: none; border: 0; color: #fff; font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0; }
+.changes { list-style: none; padding: 0; }
+.change { border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; }
+.change.approved { border-color: #1a7f37; }
+.change.rejected { border-color: #b3261e; opacity: 0.75; }
+.change .meta { color: #666; font-size: 0.85em; }
+.payload { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 6px 0; }
+.payload dt { color: #555; }
+.payload dd { margin: 0; }
+.event-filter { flex-wrap: wrap; }
+.event-filter label { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+.event-filter input { display: inline-block; width: auto; }
+.chart-layout { display: flex; gap: 12px; align-items: flex-start; }
+.chart-layout .chart-scroll { flex: 1; min-width: 0; }
+.chart-legend { flex: 0 0 220px; max-height: 520px; overflow-y: auto; background: #fff; border: 1px solid #ddd; padding: 6px 8px; font-size: 0.9em; }
+.chart-legend summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+.chart-legend .count { font-weight: normal; color: #666; }
+.chart-legend ul { list-style: none; margin: 0 0 6px; padding-left: 18px; }
+.chart-legend li { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+.chart-legend .swatch { width: 14px; height: 4px; border-radius: 2px; flex: none; }
+.chart-legend input { display: inline-block; width: auto; margin: 0; }
+@media (max-width: 700px) { .chart-layout { flex-direction: column; } .chart-layout .chart-scroll { width: 100%; } .chart-legend { flex: none; width: 100%; box-sizing: border-box; max-height: 300px; } }

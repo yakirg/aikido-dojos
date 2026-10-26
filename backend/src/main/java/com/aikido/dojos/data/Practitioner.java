@@ -26,7 +26,8 @@ public class Practitioner {
     @Enumerated(EnumType.STRING)
     @Column(name = "rank_name", length = 50)
     private Rank rank;
-    private LocalDate startDate;
+    @Column(length = 10)
+    private String startDate;
     @OneToMany(mappedBy = "practitioner", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("startDate DESC")
     @ToString.Exclude
@@ -40,7 +41,7 @@ public class Practitioner {
     /** Current rank is the most recent award; undated awards count as oldest, ties go to the higher rank. */
     public void refreshCurrentRank() {
         rank = rankAwards.stream()
-                .max(Comparator.comparing((RankAward a) -> a.getAwardedDate() == null ? LocalDate.MIN : a.getAwardedDate())
+                .max(Comparator.comparing((RankAward a) -> a.getAwardedDate() == null ? "" : a.getAwardedDate())
                         .thenComparing(RankAward::getRank))
                 .map(RankAward::getRank).orElse(null);
     }
