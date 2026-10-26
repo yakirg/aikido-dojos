@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="700" viewBox="0 0 140 700">
+  <defs>
+    <linearGradient id="s1" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#3f5f2c"/>
+      <stop offset="0.3" stop-color="#8fb56a"/>
+      <stop offset="0.5" stop-color="#a9c98a"/>
+      <stop offset="1" stop-color="#4a6e33"/>
+    </linearGradient>
+    <linearGradient id="s2" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#4a6e33"/>
+      <stop offset="0.35" stop-color="#9cc07a"/>
+      <stop offset="1" stop-color="#3f5f2c"/>
+    </linearGradient>
+    <linearGradient id="nd" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2f4a20"/>
+      <stop offset="0.4" stop-color="#6d9450"/>
+      <stop offset="1" stop-color="#2f4a20"/>
+    </linearGradient>
+    <linearGradient id="lf" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#4f7a37"/>
+      <stop offset="1" stop-color="#8fb56a"/>
+    </linearGradient>
+  </defs>
+  <g opacity="0.9">
+    <rect x="26" y="0" width="18" height="700" fill="url(#s1)"/>
+    <rect x="80" y="0" width="12" height="700" fill="url(#s2)"/>
+    <g fill="url(#nd)">
+      <rect x="24" y="118" width="22" height="7" rx="3"/>
+      <rect x="24" y="298" width="22" height="7" rx="3"/>
+      <rect x="24" y="498" width="22" height="7" rx="3"/>
+      <rect x="24" y="658" width="22" height="7" rx="3"/>
+      <rect x="78" y="198" width="16" height="6" rx="3"/>
+      <rect x="78" y="418" width="16" height="6" rx="3"/>
+      <rect x="78" y="598" width="16" height="6" rx="3"/>
+    </g>
+    <g fill="url(#lf)">
+      <path d="M44 300C68 286 98 288 128 262C106 300 72 310 44 303Z"/>
+      <path d="M44 300C62 304 84 322 100 352C76 330 58 316 44 303Z"/>
+      <path d="M26 500C8 490-4 470-10 440C10 470 20 482 26 503Z"/>
+      <path d="M92 420C112 410 128 392 138 366C124 396 110 414 92 424Z"/>
+      <path d="M80 200C64 190 54 176 50 154C62 176 72 190 80 204Z"/>
+      <path d="M44 120C60 110 76 108 96 92C80 118 62 126 44 124Z"/>
+      <path d="M80 600C64 604 52 620 48 646C60 624 72 612 80 604Z"/>
+    </g>
+  </g>
+</svg>

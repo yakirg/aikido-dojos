@@ -28,7 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api")
 public class AuthController {
-    public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
+    public record LoginRequest(String username, String password) {}
     public record UserRequest(@NotBlank @Size(max = 50) String username, @NotBlank @Size(min = 8, max = 72) String password,
                               @jakarta.validation.constraints.Email @Size(max = 200) String email) {}
     public record EmailRequest(@jakarta.validation.constraints.Email @Size(max = 200) String email) {}
@@ -65,8 +65,11 @@ public class AuthController {
     }
 
     @PostMapping("/auth/login")
-    public Map<String, Object> login(@Valid @RequestBody LoginRequest r, HttpServletRequest req, HttpServletResponse res) {
+    public Map<String, Object> login(@RequestBody LoginRequest r, HttpServletRequest req, HttpServletResponse res) {
         try {
+            if (r.username() == null || r.username().isBlank() || r.password() == null || r.password().isBlank()) {
+                throw new org.springframework.security.authentication.BadCredentialsException("blank credentials");
+            }
             Authentication auth = authManager.authenticate(
                     UsernamePasswordAuthenticationToken.unauthenticated(r.username(), r.password()));
             SecurityContext ctx = SecurityContextHolder.createEmptyContext();
