@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import Timeline from './pages/Timeline.jsx';
+import Ancestry from './pages/Ancestry.jsx';
 import Welcome from './pages/Welcome.jsx';
 import { DojoList, DojoForm, DojoDetail } from './pages/Dojos.jsx';
 import { PractitionerList, PractitionerForm, PractitionerDetail } from './pages/Practitioners.jsx';
@@ -22,12 +23,12 @@ export default function App() {
     try {
       const m = await authApi.me();
       setMe({ admin: m.admin === true, username: m.username || '' });
-      if (m.admin === true) refreshPending();
+      if (m.admin === true) { setNotice(''); refreshPending(); }
     } catch { setMe({ admin: false, username: '' }); }
   }, [refreshPending]);
   useEffect(() => { refreshMe(); }, [refreshMe]);
   useEffect(() => {
-    const on = (e) => setNotice(e.detail);
+    const on = (e) => { setNotice(e.detail); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     window.addEventListener('edit-pending', on);
     return () => window.removeEventListener('edit-pending', on);
   }, []);
@@ -41,6 +42,7 @@ export default function App() {
 
   return (
     <>
+      <header className="site-header">
       <div className="banner" role="status">🚧 Under Construction — this site is a work in progress 🚧</div>
       {notice && (
         <div className="notice" role="status">
@@ -52,6 +54,7 @@ export default function App() {
         <Link to="/dojos">Dojos</Link>
         <Link to="/practitioners">Practitioners</Link>
         <Link to="/timeline">Timeline</Link>
+        <Link to="/ancestry">Ancestry</Link>
         <span className="spacer" />
         {me.admin ? (
           <>
@@ -61,10 +64,12 @@ export default function App() {
           </>
         ) : <Link to="/login">Admin login</Link>}
       </nav>
+      </header>
       <main>
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/timeline" element={<Timeline />} />
+          <Route path="/ancestry" element={<Ancestry />} />
           <Route path="/login" element={<Login onLogin={refreshMe} />} />
           <Route path="/changes" element={me.admin ? <ReviewEdits onChange={refreshPending} /> : <Login onLogin={refreshMe} />} />
           <Route path="/admins" element={me.admin ? <AdminUsers me={me} /> : <Login onLogin={refreshMe} />} />

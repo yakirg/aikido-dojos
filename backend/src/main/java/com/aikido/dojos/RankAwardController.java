@@ -3,7 +3,6 @@ package com.aikido.dojos;
 import com.aikido.dojos.data.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDate;
 import java.util.Comparator;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,18 +17,22 @@ public class RankAwardController {
             .comparing((RankAward a) -> a.getAwardedDate() == null ? "" : a.getAwardedDate())
             .thenComparing(RankAward::getRank).reversed();
 
-    public record RankAwardRequest(@NotNull Rank rank, @PartialDates.Valid String awardedDate) {}
+    public record RankAwardRequest(@NotNull Rank rank, @PartialDates.Valid String awardedDate, Long dojoId) {}
 
-    public record RankAwardResponse(Long id, Long practitionerId, Rank rank, String awardedDate) {
+    public record RankAwardResponse(Long id, Long practitionerId, Rank rank, String awardedDate,
+                                   Long dojoId, String dojoName) {
         static RankAwardResponse of(RankAward a) {
-            return new RankAwardResponse(a.getId(), a.getPractitioner().getId(), a.getRank(), a.getAwardedDate());
+            return new RankAwardResponse(a.getId(), a.getPractitioner().getId(), a.getRank(), a.getAwardedDate(),
+                    a.getDojo() == null ? null : a.getDojo().getId(), a.getDojo() == null ? null : a.getDojo().getName());
         }
     }
 
     private final RankAwardRepository awards;
     private final PractitionerRepository practitioners;
+    private final DojoRepository dojos;
 
-    RankAwardController(RankAwardRepository awards, PractitionerRepository practitioners) {
+    RankAwardController(RankAwardRepository awards, PractitionerRepository practitioners, DojoRepository dojos) {
+        this.dojos = dojos;
         this.awards = awards;
         this.practitioners = practitioners;
     }
@@ -43,7 +46,7 @@ public class RankAwardController {
         a.setPractitioner(p);
         a.setRank(r.rank());
         a.setAwardedDate(r.awardedDate());
-        p.getRankAwards().add(a);
+        a.setDojo(dojo(r.dojoId()));
         RankAward saved = awards.save(a);
         p.refreshCurrentRank();
         return RankAwardResponse.of(saved);
@@ -54,6 +57,7 @@ public class RankAwardController {
         RankAward a = find(id);
         a.setRank(r.rank());
         a.setAwardedDate(r.awardedDate());
+        a.setDojo(dojo(r.dojoId()));
         RankAward saved = awards.save(a);
         a.getPractitioner().refreshCurrentRank();
         return RankAwardResponse.of(saved);
@@ -67,6 +71,11 @@ public class RankAwardController {
         p.getRankAwards().remove(a);
         awards.delete(a);
         p.refreshCurrentRank();
+    }
+
+    private Dojo dojo(Long id) {
+        return id == null ? null : dojos.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dojo not found"));
     }
 
     private RankAward find(Long id) {

@@ -23,7 +23,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class PendingEditInterceptor implements HandlerInterceptor {
     private static final Set<String> WRITES = Set.of("POST", "PUT", "DELETE");
     private static final Pattern PATH = Pattern.compile(
-            "^/api/(dojos|practitioners|memberships|rank-awards|leaders)(?:/(\\d+))?(?:/(memberships|rank-awards|leaders))?$");
+            "^/api/(dojos|practitioners|memberships|rank-awards|leaders|locations)(?:/(\\d+))?(?:/(memberships|rank-awards|leaders|locations))?$");
 
     private final ChangeRequestRepository changes;
     private final DojoRepository dojos;
@@ -50,13 +50,14 @@ public class PendingEditInterceptor implements HandlerInterceptor {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (SecurityConfig.isAdmin(auth)) {
             if (!"approved-change".equals(auth.getName())) {
-                org.slf4j.LoggerFactory.getLogger("audit").info("ADMIN_EDIT by={} method={} path={} ip={}",
-                        auth.getName().replaceAll("[\\p{Cntrl}\"]", "_"), req.getMethod(),
-                        path.replaceAll("[\\p{Cntrl}\"]", "_"), req.getRemoteAddr());
+                Matcher am = PATH.matcher(path);
+                if (am.matches()) {
+                    req.setAttribute(ADMIN_EDIT, new String[] {am.group(1), am.group(2), am.group(3),
+                            label(am.group(1), am.group(3), am.group(2) == null ? null : Long.valueOf(am.group(2)), null)});
+                }
             }
             return true;
         }
-
         Matcher m = PATH.matcher(path);
         if (!m.matches()) {
             res.sendError(HttpStatus.FORBIDDEN.value());
@@ -80,14 +81,7 @@ public class PendingEditInterceptor implements HandlerInterceptor {
         String collection = m.group(1);
         Long id = m.group(2) == null ? null : Long.valueOf(m.group(2));
         String child = m.group(3);
-        String entity = child != null ? childEntity(child)
-                : switch (collection) {
-                    case "dojos" -> "Dojo";
-                    case "practitioners" -> "Practitioner";
-                    case "memberships" -> "Membership";
-                    case "leaders" -> "Dojo leader";
-                    default -> "Rank award";
-                };
+        String entity = entityName(collection, child);
         String action = switch (req.getMethod()) {
             case "POST" -> "CREATE";
             case "PUT" -> "UPDATE";
@@ -103,6 +97,7 @@ public class PendingEditInterceptor implements HandlerInterceptor {
         c.setTargetId(id);
         c.setLabel(label(collection, child, id, json));
         c.setSubmittedBy("anonymous");
+        c.setSubmitterToken(MyEditsController.tokenFor(req, res));
         c.setSubmittedAt(Instant.now());
         c = changes.save(c);
         ChangeRequestController.audit("EDIT_SUBMITTED", c, null);
@@ -115,6 +110,34 @@ public class PendingEditInterceptor implements HandlerInterceptor {
         return false;
     }
 
+    static final String ADMIN_EDIT = "audit.adminEdit";
+    static final String BODY = "audit.body";
+
+    @Override
+    public void afterCompletion(HttpServletRequest req, HttpServletResponse res, Object handler, Exception ex) {
+        Object attr = req.getAttribute(ADMIN_EDIT);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!(attr instanceof String[] a) || auth == null) return;
+        Long id = a[1] == null ? null : Long.valueOf(a[1]);
+        JsonNode json = req.getAttribute(BODY) instanceof JsonNode n ? n : null;
+        String lbl = a[3] != null ? a[3] : label(a[0], a[2], id, json);
+        String verb = switch (req.getMethod()) {
+            case "POST" -> "created";
+            case "PUT" -> "updated";
+            default -> "deleted";
+        };
+        boolean ok = res.getStatus() < 400 && ex == null;
+        String what = (ok ? verb : "FAILED to " + verbBase(verb)) + " " + entityName(a[0], a[2]).toLowerCase() + (lbl == null ? "" : " '" + lbl + "'")
+                + (id == null ? "" : " (id " + id + ")");
+        org.slf4j.LoggerFactory.getLogger("audit").info("ADMIN_EDIT by={} {} ip={}",
+                auth.getName().replaceAll("[\\p{Cntrl}\"]", "_"),
+                what.replaceAll("[\\p{Cntrl}\"]", "_"),
+                req.getRemoteAddr());
+    }
+
+    private static String verbBase(String v) {
+        return v.equals("created") ? "create" : v.equals("updated") ? "update" : "delete";
+    }
     private String label(String collection, String child, Long id, JsonNode json) {
         String text = null;
         if (child == null && collection.equals("dojos")) {
@@ -135,10 +158,22 @@ public class PendingEditInterceptor implements HandlerInterceptor {
         return text.length() > 300 ? text.substring(0, 300) : text;
     }
 
+    private static String entityName(String collection, String child) {
+        if (child != null) return childEntity(child);
+        return switch (collection) {
+            case "dojos" -> "Dojo";
+            case "practitioners" -> "Practitioner";
+            case "memberships" -> "Membership";
+            case "leaders" -> "Dojo leader";
+            case "locations" -> "Dojo location";
+            default -> "Rank award";
+        };
+    }
     private static String childEntity(String child) {
         return switch (child) {
             case "memberships" -> "Membership";
             case "leaders" -> "Dojo leader";
+            case "locations" -> "Dojo location";
             default -> "Rank award";
         };
     }

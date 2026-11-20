@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { changesApi } from '../api.js';
+import { changesApi, dojosApi, practitionersApi } from '../api.js';
 
 const FIELD_LABELS = { firstName: 'First name', lastName: 'Last name', startDate: 'Start', endDate: 'End', foundedDate: 'Founded', closedDate: 'Closed', postalCode: 'Postal code', awardedDate: 'Awarded' };
 
-function Payload({ body }) {
+function Payload({ body, dojos, people }) {
   if (!body) return null;
   let data;
   try { data = JSON.parse(body); } catch { return <code>{body}</code>; }
@@ -11,7 +11,10 @@ function Payload({ body }) {
   return (
     <dl className="payload">
       {rows.map(([k, v]) => (
-        <React.Fragment key={k}><dt>{FIELD_LABELS[k] || k}</dt><dd>{String(v)}</dd></React.Fragment>
+        <React.Fragment key={k}>
+          <dt>{k === 'dojoId' ? 'Dojo' : k === 'practitionerId' ? 'Practitioner' : (FIELD_LABELS[k] || k)}</dt>
+          <dd>{k === 'dojoId' ? (dojos[v] || String(v)) : k === 'practitionerId' ? (people[v] || String(v)) : String(v)}</dd>
+        </React.Fragment>
       ))}
     </dl>
   );
@@ -21,6 +24,21 @@ export default function ReviewEdits({ onChange }) {
   const [filter, setFilter] = useState('PENDING');
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
+  const [dojos, setDojos] = useState({});
+  const [people, setPeople] = useState({});
+  useEffect(() => {
+    dojosApi.list().then((r) => {
+      const m = {};
+      (Array.isArray(r) ? r : []).forEach((d) => { if (d && d.id != null) m[d.id] = d.name; });
+      setDojos(m);
+    }).catch(() => {});
+    practitionersApi.list().then((r) => {
+      const arr = Array.isArray(r) ? r : (r && Array.isArray(r.content) ? r.content : []);
+      const m = {};
+      arr.forEach((p) => { if (p && p.id != null) m[p.id] = `${p.firstName} ${p.lastName}`; });
+      setPeople(m);
+    }).catch(() => {});
+  }, []);
 
   const load = () => changesApi.list(filter === 'ALL' ? '' : filter).then(setItems).catch((e) => setError(e.message));
   useEffect(() => { load(); }, [filter]);
@@ -59,7 +77,7 @@ export default function ReviewEdits({ onChange }) {
                 {c.targetId ? ` (#${c.targetId})` : ''}
                 <span className="meta"> · {c.submittedBy} · {new Date(c.submittedAt).toLocaleString()} · {c.status}</span>
               </div>
-              <Payload body={c.body} />
+              <Payload body={c.body} dojos={dojos} people={people} />
               {c.error && <p className="error">{c.error}</p>}
               {c.reviewedBy && <p className="meta">Reviewed by {c.reviewedBy}{c.reviewNote ? `: ${c.reviewNote}` : ''}</p>}
               {c.status === 'PENDING' && (

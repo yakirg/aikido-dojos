@@ -1,12 +1,16 @@
+import MyPendingEdits, { PendingTr } from '../components/MyPendingEdits.jsx';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import LeaderEditor from '../components/LeaderEditor.jsx';
+import LocationEditor from '../components/LocationEditor.jsx';
 import MembershipEditor from '../components/MembershipEditor.jsx';
-import { ZIP_LOOKUP_COUNTRIES, dojosApi, leadersApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
+import { SortTh, dateKey, useSort } from '../components/Sort.jsx';
+import { ZIP_LOOKUP_COUNTRIES, dojoLocationsApi, dojosApi, leadersApi, locationsApi, membershipsApi, practitionersApi } from '../api.js';
 
 export function DojoList() {
   const [q, setQ] = useState('');
   const [dojos, setDojos] = useState([]);
+  const { rows, sort, onSort } = useSort(dojos, { name: (d) => d.name, city: (d) => d.city || '', state: (d) => d.state || '', country: (d) => d.country || '', founded: (d) => dateKey(d.foundedDate), founders: (d) => (d.founders || []).map((f) => f.name).join(', ') });
   const [error, setError] = useState('');
 
   const load = () =>
@@ -26,28 +30,30 @@ export function DojoList() {
 
   return (
     <div>
-      <h1>Dojos</h1>
+      <h1>Dojos</h1><MyPendingEdits />
       <div className="toolbar">
         <input placeholder="Search name, city, country" value={q} onChange={(e) => setQ(e.target.value)} />
         <Link className="btn" to="/dojos/new">Add dojo</Link>
       </div>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Name</th><th>City</th><th>State</th><th>Country</th><th>Founded</th><th>Founders</th><th>Actions</th></tr></thead>
+        <thead><tr><SortTh label="Name" field="name" sort={sort} onSort={onSort} /><SortTh label="City" field="city" sort={sort} onSort={onSort} /><SortTh label="State" field="state" sort={sort} onSort={onSort} /><SortTh label="Country" field="country" sort={sort} onSort={onSort} /><SortTh label="Founded" field="founded" sort={sort} onSort={onSort} /><SortTh label="Founders" field="founders" sort={sort} onSort={onSort} /><th>Actions</th></tr></thead>
         <tbody>
-          {dojos.map((d) => (
-            <tr key={d.id}>
+          {rows.map((d) => (
+            <PendingTr key={d.id} path={`/api/dojos/${d.id}`}>
               <td><Link to={`/dojos/${d.id}/view`}>{d.name}</Link></td>
               <td>{d.city}</td>
               <td>{d.state}</td>
               <td>{d.country}</td>
               <td>{d.foundedDate}</td>
-              <td>{(d.founders || []).map((f) => f.name).join(', ')}</td>
-              <td>
+              <td>{(d.founders || []).map((f, i) => (
+                <span key={f.id}>{i > 0 && ', '}<Link to={`/practitioners/${f.id}`}>{f.name}</Link></span>
+              ))}</td>
+              <td className="row-actions">
                 <Link className="btn" to={`/dojos/${d.id}`}>Edit</Link>
                 <button onClick={() => remove(d)}>Delete</button>
               </td>
-            </tr>
+            </PendingTr>
           ))}
         </tbody>
       </table>
@@ -60,10 +66,16 @@ export function DojoDetail() {
   const [dojo, setDojo] = useState(null);
   const [members, setMembers] = useState([]);
   const [leaders, setLeaders] = useState([]);
+  const [places, setPlaces] = useState([]);
   const [error, setError] = useState('');
+  const placeSort = useSort(places, { place: (x) => x.address || x.city || '', from: (x) => dateKey(x.startDate), to: (x) => dateKey(x.endDate) }, { by: 'from', desc: false });
+  const nameFrom = { name: (x) => x.practitionerName || '', from: (x) => dateKey(x.startDate), to: (x) => dateKey(x.endDate) };
+  const leaderSort = useSort(leaders, nameFrom, { by: 'from', desc: false });
+  const memberSort = useSort(members, nameFrom, { by: 'from', desc: false });
 
   useEffect(() => {
     leadersApi.forDojo(id).then(setLeaders).catch(() => {});
+    dojoLocationsApi.forDojo(id).then((r) => setPlaces(Array.isArray(r) ? r : [])).catch(() => {});
     dojosApi.get(id).then(setDojo).catch((e) => setError(e.message));
     membershipsApi.forDojo(id).then(setMembers).catch(() => {});
   }, [id]);
@@ -74,7 +86,7 @@ export function DojoDetail() {
   const location = [dojo.address, dojo.city, dojo.state, dojo.postalCode, dojo.country].filter(Boolean).join(', ');
   return (
     <div>
-      <h1>{dojo.name}</h1>
+      <h1>{dojo.name}</h1><MyPendingEdits match={(c) => c.path.includes(`/dojos/${id}`)} />
       <dl>
         <dt>Location</dt><dd>{location || '—'}</dd>
         <dt>Founded</dt><dd>{dojo.foundedDate || '—'}</dd>
@@ -90,12 +102,29 @@ export function DojoDetail() {
         <dt>Website</dt>
         <dd>{dojo.website ? <a href={dojo.website} target="_blank" rel="noreferrer">{dojo.website}</a> : '—'}</dd>
       </dl>
+      {places.length > 1 && (
+        <>
+          <h2>Location history</h2>
+          <table>
+            <thead><tr><SortTh label="Location" field="place" sort={placeSort.sort} onSort={placeSort.onSort} /><SortTh label="From" field="from" sort={placeSort.sort} onSort={placeSort.onSort} /><SortTh label="To" field="to" sort={placeSort.sort} onSort={placeSort.onSort} /></tr></thead>
+            <tbody>
+              {placeSort.rows.map((p) => (
+                <tr key={p.id}>
+                  <td>{[p.address, p.city, p.state, p.postalCode, p.country].filter(Boolean).join(', ')}</td>
+                  <td>{p.startDate || '?'}</td>
+                  <td>{p.endDate || 'present'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
       <h2>Leaders</h2>
       {leaders.length === 0 ? <p>No leaders recorded.</p> : (
         <table>
-          <thead><tr><th>Name</th><th>From</th><th>To</th><th></th></tr></thead>
+          <thead><tr><SortTh label="Name" field="name" sort={leaderSort.sort} onSort={leaderSort.onSort} /><SortTh label="From" field="from" sort={leaderSort.sort} onSort={leaderSort.onSort} /><SortTh label="To" field="to" sort={leaderSort.sort} onSort={leaderSort.onSort} /><th></th></tr></thead>
           <tbody>
-            {leaders.map((l) => (
+            {leaderSort.rows.map((l) => (
               <tr key={l.id}>
                 <td><Link to={`/practitioners/${l.practitionerId}`}>{l.practitionerName}</Link></td>
                 <td>{l.startDate || '?'}</td>
@@ -109,9 +138,9 @@ export function DojoDetail() {
       <h2>Practitioners</h2>
       {members.length === 0 ? <p>No practitioners yet.</p> : (
         <table>
-          <thead><tr><th>Name</th><th>From</th><th>To</th></tr></thead>
+          <thead><tr><SortTh label="Name" field="name" sort={memberSort.sort} onSort={memberSort.onSort} /><SortTh label="From" field="from" sort={memberSort.sort} onSort={memberSort.onSort} /><SortTh label="To" field="to" sort={memberSort.sort} onSort={memberSort.onSort} /></tr></thead>
           <tbody>
-            {members.map((m) => (
+            {memberSort.rows.map((m) => (
               <tr key={m.id}>
                 <td><Link to={`/practitioners/${m.practitionerId}`}>{m.practitionerName}</Link></td>
                 <td>{m.startDate || '?'}</td>
@@ -184,10 +213,13 @@ export function DojoForm() {
 
   return (
     <div>
-      <h1>{id ? 'Edit dojo' : 'New dojo'}</h1>
+      <h1>{id ? 'Edit dojo' : 'New dojo'}</h1><MyPendingEdits match={(c) => !id || c.path.includes(`/dojos/${id}`)} />
       {error && <p className="error">{error}</p>}
       <form onSubmit={submit}>
         <label>Name<input required value={form.name} onChange={set('name')} /></label>
+        {id ? (
+          <p>Current location: {[form.address, form.city, form.state, form.postalCode, form.country].filter(Boolean).join(', ') || '—'} (edit under Locations below)</p>
+        ) : (<>
         <label>Country
           <select required value={form.country} onChange={set('country')}>
             <option value="">Select…</option>
@@ -205,12 +237,14 @@ export function DojoForm() {
         <label>City<input value={form.city} onChange={set('city')} /></label>
         <label>State / Province<input value={form.state} onChange={set('state')} /></label>
         <label>Address<input value={form.address} onChange={set('address')} /></label>
+        </>)}
         <label>Website<input value={form.website} onChange={set('website')} /></label>
         <label>Founded<input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={form.foundedDate} onChange={set('foundedDate')} /></label>
         <label>Closed<input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" value={form.closedDate} onChange={set('closedDate')} /></label>
         <button type="submit">Save</button>
         <Link to="/dojos">Cancel</Link>
       </form>
+      {id && <LocationEditor dojoId={id} />}
       {id && <LeaderEditor dojoId={id} foundedDate={form.foundedDate} practitioners={practitioners} />}
       {id && (
         <MembershipEditor mode="dojo" ownerId={id} items={members} options={practitioners} onChange={loadMembers} />

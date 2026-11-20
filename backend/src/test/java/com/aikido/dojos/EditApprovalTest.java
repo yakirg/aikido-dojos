@@ -24,6 +24,7 @@ class EditApprovalTest {
     @Test
     void adminsWithEmailAreNotifiedOfPendingEdits() throws Exception {
         String cookie = login();
+        assertThat(call(HttpMethod.GET, "/api/admin/users", cookie, null, HttpStatus.OK).get(0).get("lastLogin").isNull()).isFalse();
         long id = call(HttpMethod.GET, "/api/admin/users", cookie, null, HttpStatus.OK).get(0).get("id").asLong();
         call(HttpMethod.PUT, "/api/admin/users/" + id + "/email", cookie, "{\"email\":\"boss@example.com\"}", HttpStatus.OK);
         call(HttpMethod.PUT, "/api/admin/users/" + id + "/email", cookie, "{\"email\":\"not-an-email\"}", HttpStatus.BAD_REQUEST);
@@ -87,6 +88,39 @@ class EditApprovalTest {
     }
 
     @Test
+    void rankAwardsCanBeAddedByAdminAndViaApproval() throws Exception {
+        String cookie = login();
+        long pid = call(HttpMethod.POST, "/api/practitioners", cookie,
+                "{\"firstName\":\"Rank\",\"lastName\":\"Tester\"}", HttpStatus.CREATED).get("id").asLong();
+        call(HttpMethod.POST, "/api/practitioners/" + pid + "/rank-awards", cookie,
+                "{\"rank\":\"SHODAN\",\"awardedDate\":\"2020-01-01\"}", HttpStatus.CREATED);
+        long did = call(HttpMethod.POST, "/api/dojos", cookie, "{\"name\":\"Award Dojo\",\"country\":\"USA\"}", HttpStatus.CREATED).get("id").asLong();
+        assertThat(call(HttpMethod.POST, "/api/practitioners/" + pid + "/rank-awards", cookie,
+                "{\"rank\":\"SANDAN\",\"awardedDate\":\"2023\",\"dojoId\":" + did + "}", HttpStatus.CREATED).get("dojoName").asText())
+                .isEqualTo("Award Dojo");
+        JsonNode pending = call(HttpMethod.POST, "/api/practitioners/" + pid + "/rank-awards", null,
+                "{\"rank\":\"NIDAN\",\"awardedDate\":\"2022\",\"dojoId\":" + did + "}", HttpStatus.ACCEPTED);
+        call(HttpMethod.POST, "/api/changes/" + pending.get("changeId").asLong() + "/approve", cookie, null, HttpStatus.OK);
+        JsonNode hist = call(HttpMethod.GET, "/api/practitioners/" + pid, null, null, HttpStatus.OK).get("rankHistory");
+        assertThat(hist).hasSize(3);
+        assertThat(hist.toString()).contains("\"dojoName\":\"Award Dojo\"");
+        assertThat(hist.toString().split("Award Dojo", -1).length - 1).isEqualTo(2);
+    }
+
+    @Test
+    void submitterSeesOwnPendingEditsOnly() throws Exception {
+        ResponseEntity<String> r = rest.exchange("/api/dojos", HttpMethod.POST,
+                new HttpEntity<>("{\"name\":\"Mine Dojo\",\"country\":\"USA\"}", json(null)), String.class);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        String cookie = r.getHeaders().getFirst(HttpHeaders.SET_COOKIE).split(";")[0];
+        JsonNode mine = call(HttpMethod.GET, "/api/my-edits", cookie, null, HttpStatus.OK);
+        assertThat(mine).hasSize(1);
+        assertThat(mine.get(0).get("label").asText()).isEqualTo("Mine Dojo");
+        assertThat(call(HttpMethod.GET, "/api/my-edits", null, null, HttpStatus.OK)).isEmpty();
+        assertThat(call(HttpMethod.GET, "/api/my-edits", "editor=00000000-0000-0000-0000-000000000000", null, HttpStatus.OK)).isEmpty();
+    }
+
+    @Test
     void wrongPasswordAndFakeReplayTokenRejected() throws Exception {
         call(HttpMethod.POST, "/api/auth/login", null, "{\"username\":\"boss\",\"password\":\"nope\"}", HttpStatus.UNAUTHORIZED);
         HttpHeaders h = json(null);
@@ -115,7 +149,7 @@ class EditApprovalTest {
             call(HttpMethod.POST, "/api/changes/" + sub2.get("changeId").asLong() + "/reject", cookie, "{}", HttpStatus.OK);
             call(HttpMethod.POST, "/api/dojos", cookie, "{\"name\":\"Direct Dojo\",\"country\":\"USA\"}", HttpStatus.CREATED);
             String all = appender.list.stream().map(e -> e.getFormattedMessage()).reduce("", (a, b) -> a + b + "\n");
-            assertThat(all).contains("ADMIN_EDIT by=boss method=POST path=/api/dojos ip=");
+            assertThat(all).contains("ADMIN_EDIT by=boss created dojo 'Direct Dojo'");
             assertThat(all).contains("EDIT_SUBMITTED change=" + sub.get("changeId").asLong(),
                     "EDIT_APPROVED change=" + sub.get("changeId").asLong() + " by=boss",
                     "EDIT_REJECTED change=" + sub2.get("changeId").asLong() + " by=boss");

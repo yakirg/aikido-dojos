@@ -73,9 +73,11 @@ public class ChangeRequestController {
     }
 
     static void audit(String event, ChangeRequest c, Principal admin) {
-        AUDIT.info("{} change={} by={} action={} entity={} target={} label=\"{}\" submittedBy={}", event, c.getId(),
+        AUDIT.info("{} change={} by={} action={} entity={} target={} label=\"{}\" submittedBy={} summary=\"{} {}{}\"", event, c.getId(),
                 admin == null ? "-" : clean(admin.getName()), c.getAction(), clean(c.getEntityType()), c.getTargetId(),
-                clean(c.getLabel()), clean(c.getSubmittedBy()));
+                clean(c.getLabel()), clean(c.getSubmittedBy()),
+                  c.getAction() == null ? "" : c.getAction().toLowerCase(), clean(c.getEntityType()).toLowerCase(),
+                  c.getLabel() == null ? "" : " '" + clean(c.getLabel()) + "'");
     }
 
     private static String clean(String s) {

@@ -39,6 +39,7 @@ test('dojo name links to detail page', async () => {
 
 test('timeline shows join events', async () => {
   render(<MemoryRouter initialEntries={['/timeline']}><App /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('tab', { name: 'Events' }));
   expect(await screen.findByText('Ann Zed joined Hombu Dojo')).toBeInTheDocument();
 });
 
@@ -112,7 +113,8 @@ test('practitioner view page is read-only with an edit link', async () => {
   });
   render(<MemoryRouter initialEntries={['/practitioners/2']}><App /></MemoryRouter>);
   expect(await screen.findByText('Ann Zed')).toBeInTheDocument();
-  expect(screen.getByText('Hombu Dojo')).toHaveAttribute('href', '/dojos/1/view');
+  expect(screen.getAllByText('Hombu Dojo')[0]).toHaveAttribute('href', '/dojos/1/view');
+  expect(screen.getByRole('button', { name: 'Ancestry' })).toBeInTheDocument();
   expect(screen.getByText('Edit practitioner')).toHaveAttribute('href', '/practitioners/2/edit');
   expect(screen.queryByText('Save')).toBeNull();
 });

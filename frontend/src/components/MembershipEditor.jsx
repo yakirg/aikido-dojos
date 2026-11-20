@@ -1,6 +1,8 @@
+import { usePendingDelete } from './MyPendingEdits.jsx';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { membershipsApi } from '../api.js';
+import { SortTh, dateKey, useSort } from './Sort.jsx';
 
 function Row({ m, mode, dojos, onSaved, onError }) {
   const initial = { dojoId: m.dojoId, startDate: m.startDate || '', endDate: m.endDate || '' };
@@ -25,8 +27,8 @@ function Row({ m, mode, dojos, onSaved, onError }) {
     try { await membershipsApi.remove(m.id); onError(''); onSaved(); } catch (e) { onError(e.message); }
   };
 
-  return (
-    <tr>
+  const gone = usePendingDelete(`/api/memberships/${m.id}`);
+  return (<tr className={gone ? 'pending-delete' : ''}>
       <td>
         {mode === 'dojo'
           ? <Link to={`/practitioners/${m.practitionerId}`}>{m.practitionerName}</Link>
@@ -38,7 +40,7 @@ function Row({ m, mode, dojos, onSaved, onError }) {
       </td>
       <td><input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" aria-label="From" value={draft.startDate} onChange={set('startDate')} /></td>
       <td><input type="text" inputMode="numeric" placeholder="YYYY, YYYY-MM or YYYY-MM-DD" title="Year, year-month or full date" pattern="\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?" size="14" aria-label="To" value={draft.endDate} onChange={set('endDate')} /></td>
-      <td>
+      <td className="row-actions">
         <button type="button" onClick={save} disabled={!dirty}>Save</button>
         <button type="button" onClick={remove}>Remove</button>
       </td>
@@ -50,8 +52,11 @@ function Row({ m, mode, dojos, onSaved, onError }) {
  * mode 'dojo': items are a dojo's memberships; options are practitioners ({id, firstName, lastName}).
  * mode 'practitioner': items are a practitioner's memberships; options are dojos ({id, name}).
  */
+const memberName = (m) => m.dojoName || m.practitionerName || '';
+
 export default function MembershipEditor({ mode, ownerId, items, options, onChange }) {
   const [error, setError] = useState('');
+  const { rows, sort, onSort } = useSort(items, { name: memberName, from: (m) => dateKey(m.startDate), to: (m) => dateKey(m.endDate) }, { by: 'from', desc: false });
   const [add, setAdd] = useState({ otherId: '', startDate: '', endDate: '' });
   const dojos = mode === 'practitioner' ? options : [];
   const label = (o) => (mode === 'dojo' ? `${o.firstName} ${o.lastName}` : o.name);
@@ -75,9 +80,9 @@ export default function MembershipEditor({ mode, ownerId, items, options, onChan
       <h2>{mode === 'dojo' ? 'Practitioners' : 'Dojo memberships'}</h2>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>{mode === 'dojo' ? 'Practitioner' : 'Dojo'}</th><th>From</th><th>To (blank = current)</th><th>Actions</th></tr></thead>
+        <thead><tr><SortTh label={mode === 'dojo' ? 'Practitioner' : 'Dojo'} field="name" sort={sort} onSort={onSort} /><SortTh label="From" field="from" sort={sort} onSort={onSort} /><SortTh label="To" field="to" sort={sort} onSort={onSort} /><th>Actions</th></tr></thead>
         <tbody>
-          {items.map((m) => <Row key={m.id} m={m} mode={mode} dojos={dojos} onSaved={onChange} onError={setError} />)}
+          {rows.map((m) => <Row key={m.id} m={m} mode={mode} dojos={dojos} onSaved={onChange} onError={setError} />)}
         </tbody>
       </table>
       <h3>Add membership</h3>

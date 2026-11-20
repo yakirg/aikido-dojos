@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -32,7 +31,7 @@ public class AuthController {
     public record UserRequest(@NotBlank @Size(max = 50) String username, @NotBlank @Size(min = 8, max = 72) String password,
                               @jakarta.validation.constraints.Email @Size(max = 200) String email) {}
     public record EmailRequest(@jakarta.validation.constraints.Email @Size(max = 200) String email) {}
-    public record UserResponse(Long id, String username, String email) {}
+    public record UserResponse(Long id, String username, String email, java.time.Instant lastLogin) {}
 
     private final AuthenticationManager authManager;
     private final SecurityContextRepository contextRepo;
@@ -79,6 +78,7 @@ public class AuthController {
             else req.getSession(true);
             contextRepo.saveContext(ctx, req, res);
             AUDIT.info("LOGIN_SUCCESS user={} ip={}", clean(auth.getName()), client(req));
+            users.findByUsernameIgnoreCase(auth.getName()).ifPresent((u) -> { u.setLastLogin(java.time.Instant.now()); users.save(u); });
             return Map.of("admin", true, "username", auth.getName());
         } catch (AuthenticationException e) {
             AUDIT.warn("LOGIN_FAILURE user={} ip={}", clean(r.username()), client(req));
@@ -97,7 +97,7 @@ public class AuthController {
 
     @GetMapping("/admin/users")
     public List<UserResponse> listUsers() {
-        return users.findAll().stream().map(u -> new UserResponse(u.getId(), u.getUsername(), u.getEmail())).toList();
+        return users.findAll().stream().map(u -> new UserResponse(u.getId(), u.getUsername(), u.getEmail(), u.getLastLogin())).toList();
     }
 
     @PutMapping("/admin/users/{id}/email")
@@ -105,7 +105,7 @@ public class AuthController {
         AppUser u = users.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         u.setEmail(r.email() == null || r.email().isBlank() ? null : r.email().trim());
         u = users.save(u);
-        return new UserResponse(u.getId(), u.getUsername(), u.getEmail());
+        return new UserResponse(u.getId(), u.getUsername(), u.getEmail(), u.getLastLogin());
     }
 
     @PostMapping("/admin/users")
@@ -120,7 +120,7 @@ public class AuthController {
         u.setEmail(r.email() == null || r.email().isBlank() ? null : r.email().trim());
         u = users.save(u);
         AUDIT.info("ADMIN_ADDED user={} by={} ip={}", clean(u.getUsername()), clean(me.getName()), client(req));
-        return new UserResponse(u.getId(), u.getUsername(), u.getEmail());
+        return new UserResponse(u.getId(), u.getUsername(), u.getEmail(), u.getLastLogin());
     }
 
     @PutMapping("/admin/users/{id}/password")

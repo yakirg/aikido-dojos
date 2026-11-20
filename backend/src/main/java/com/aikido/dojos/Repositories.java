@@ -26,6 +26,10 @@ interface DojoLeaderRepository extends JpaRepository<DojoLeader, Long> {
     List<DojoLeader> findByDojoIdOrderByStartDateDesc(Long dojoId);
 }
 
+interface DojoLocationRepository extends JpaRepository<DojoLocation, Long> {
+    List<DojoLocation> findByDojoIdOrderByStartDateDesc(Long dojoId);
+}
+
 interface AppUserRepository extends JpaRepository<AppUser, Long> {
     java.util.Optional<AppUser> findByUsernameIgnoreCase(String username);
 }
@@ -34,6 +38,8 @@ interface ChangeRequestRepository extends JpaRepository<ChangeRequest, Long> {
     List<ChangeRequest> findByStatusOrderBySubmittedAtDesc(ChangeRequest.Status status);
 
     List<ChangeRequest> findAllByOrderBySubmittedAtDesc();
+
+    List<ChangeRequest> findBySubmitterTokenAndStatusOrderBySubmittedAtDesc(String token, ChangeRequest.Status status);
 
     long countByStatus(ChangeRequest.Status status);
 }

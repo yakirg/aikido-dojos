@@ -4,7 +4,6 @@ import com.aikido.dojos.data.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
@@ -27,7 +26,7 @@ public class DojoController {
                                                              List<FounderRef> founders) {
                                       static DojoResponse of(Dojo d) {
                                           List<FounderRef> f = d.getLeaders().stream().filter(DojoLeader::isFounder)
-                                                  .map(l -> l.getPractitioner())
+                                                  .map(DojoLeader::getPractitioner)
                                                   .map(p -> new FounderRef(p.getId(), p.getFirstName() + " " + p.getLastName())).distinct().toList();
                                           return new DojoResponse(d.getId(), d.getName(), d.getCity(), d.getState(), d.getPostalCode(), d.getCountry(), d.getAddress(),
                                                   d.getWebsite(), d.getFoundedDate(), d.getClosedDate(), f);
@@ -36,12 +35,13 @@ public class DojoController {
 
     private final DojoRepository dojos;
     private final MembershipRepository memberships;
-    private final PractitionerRepository practitioners;
+    private final DojoLocationRepository locations;
 
-    DojoController(DojoRepository dojos, MembershipRepository memberships, PractitionerRepository practitioners) {
+    DojoController(DojoRepository dojos, MembershipRepository memberships,
+                   DojoLocationRepository locations) {
+        this.locations = locations;
         this.dojos = dojos;
         this.memberships = memberships;
-        this.practitioners = practitioners;
     }
 
     @GetMapping
@@ -61,12 +61,24 @@ public class DojoController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DojoResponse create(@Valid @RequestBody DojoRequest r) {
-        return DojoResponse.of(dojos.save(apply(new Dojo(), r)));
+        Dojo d = dojos.save(apply(new Dojo(), r));
+        recordLocation(d);
+        return DojoResponse.of(d);
     }
 
     @PutMapping("/{id}")
     public DojoResponse update(@PathVariable Long id, @Valid @RequestBody DojoRequest r) {
-        return DojoResponse.of(dojos.save(apply(find(id), r)));
+        Dojo existing = find(id);
+        String[] place = {existing.getAddress(), existing.getCity(), existing.getState(), existing.getPostalCode(), existing.getCountry()};
+        Dojo d = apply(existing, r);
+        // The address is owned by the location history; edit it there.
+        d.setAddress(place[0]);
+        d.setCity(place[1]);
+        d.setState(place[2]);
+        d.setPostalCode(place[3]);
+        d.setCountry(place[4]);
+        d = dojos.save(d);
+        return DojoResponse.of(d);
     }
 
     @DeleteMapping("/{id}")
@@ -77,6 +89,23 @@ public class DojoController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Dojo still has memberships");
         }
         dojos.deleteById(id);
+    }
+
+    /** Keeps the location history in step: corrections edit the current location, a first address creates one. */
+    private void recordLocation(Dojo d) {
+        DojoLocation l = locations.findByDojoIdOrderByStartDateDesc(d.getId()).stream()
+                .filter(x -> x.getEndDate() == null).findFirst().orElse(null);
+        if (l == null) {
+            l = new DojoLocation();
+            l.setDojo(d);
+            l.setStartDate(d.getFoundedDate());
+        }
+        l.setAddress(d.getAddress());
+        l.setCity(d.getCity());
+        l.setState(d.getState());
+        l.setPostalCode(d.getPostalCode());
+        l.setCountry(d.getCountry());
+        locations.save(l);
     }
 
     private Dojo find(Long id) {

@@ -1,6 +1,8 @@
+import { usePendingDelete } from './MyPendingEdits.jsx';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { leadersApi } from '../api.js';
+import { SortTh, dateKey, useSort } from './Sort.jsx';
 
 const DATE_PATTERN = '\\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\\d|3[01]))?)?';
 
@@ -33,13 +35,13 @@ function Row({ l, onSaved, onError }) {
     try { await leadersApi.remove(l.id); onError(''); onSaved(); } catch (e) { onError(e.message); }
   };
 
-  return (
-    <tr>
+  const gone = usePendingDelete(`/api/leaders/${l.id}`);
+  return (<tr className={gone ? 'pending-delete' : ''}>
       <td><Link to={`/practitioners/${l.practitionerId}`}>{l.practitionerName}</Link></td>
       <td><DateInput label="Leader from" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></td>
       <td><DateInput label="Leader to" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></td>
       <td><input type="checkbox" aria-label="Founder" checked={draft.founder} onChange={(e) => setDraft({ ...draft, founder: e.target.checked })} /></td>
-      <td>
+      <td className="row-actions">
         <button type="button" onClick={save} disabled={!dirty}>Save</button>
         <button type="button" onClick={remove}>Remove</button>
       </td>
@@ -50,6 +52,7 @@ function Row({ l, onSaved, onError }) {
 /** Leaders of a dojo with tenure dates; founders are the first leaders. */
 export default function LeaderEditor({ dojoId, foundedDate, practitioners, onChange }) {
   const [items, setItems] = useState([]);
+  const { rows, sort, onSort } = useSort(items, { name: (l) => l.practitionerName || '', from: (l) => dateKey(l.startDate), to: (l) => dateKey(l.endDate), founder: (l) => (l.founder ? 0 : 1) }, { by: 'from', desc: false });
   const [error, setError] = useState('');
   const [add, setAdd] = useState({ practitionerId: '', startDate: '', endDate: '', founder: false });
 
@@ -78,9 +81,9 @@ export default function LeaderEditor({ dojoId, foundedDate, practitioners, onCha
       <h2>Leaders</h2>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Leader</th><th>From</th><th>To (blank = current)</th><th>Founder</th><th>Actions</th></tr></thead>
+        <thead><tr><SortTh label="Leader" field="name" sort={sort} onSort={onSort} /><SortTh label="From" field="from" sort={sort} onSort={onSort} /><SortTh label="To" field="to" sort={sort} onSort={onSort} /><SortTh label="Founder" field="founder" sort={sort} onSort={onSort} /><th>Actions</th></tr></thead>
         <tbody>
-          {items.map((l) => <Row key={l.id} l={l} onSaved={reload} onError={setError} />)}
+          {rows.map((l) => <Row key={l.id} l={l} onSaved={reload} onError={setError} />)}
         </tbody>
       </table>
       <h3>Add leader</h3>

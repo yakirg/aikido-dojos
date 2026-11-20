@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { adminUsersApi } from '../api.js';
+import { SortTh, useSort } from '../components/Sort.jsx';
 
 export default function AdminUsers({ me }) {
   const [users, setUsers] = useState([]);
+  const { rows, sort, onSort } = useSort(users, { username: (u) => u.username, email: (u) => u.email || '', lastLogin: (u) => u.lastLogin || '' });
   const [error, setError] = useState('');
   const [form, setForm] = useState({ username: '', password: '', email: '' });
 
@@ -37,12 +39,13 @@ export default function AdminUsers({ me }) {
       <h1>Administrators</h1>
       {error && <p className="error" role="alert">{error}</p>}
       <table>
-        <thead><tr><th>Username</th><th>Email</th><th /></tr></thead>
+        <thead><tr><SortTh label="Username" field="username" sort={sort} onSort={onSort} /><SortTh label="Email" field="email" sort={sort} onSort={onSort} /><SortTh label="Last login" field="lastLogin" sort={sort} onSort={onSort} /><th /></tr></thead>
         <tbody>
-          {users.map((u) => (
+          {rows.map((u) => (
             <tr key={u.id}>
               <td>{u.username}{u.username === me.username ? ' (you)' : ''}</td>
               <td>{u.email || '—'}</td>
+              <td>{u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}</td>
               <td>
                 <button type="button" onClick={() => changeEmail(u)}>Set email</button>{' '}
                 <button type="button" onClick={() => changePassword(u)}>Change password</button>{' '}

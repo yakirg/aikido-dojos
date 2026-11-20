@@ -1,8 +1,11 @@
+import MyPendingEdits, { PendingTr } from '../components/MyPendingEdits.jsx';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { dojosApi, practitionersApi, ranksApi } from '../api.js';
+import PractitionerHistory from '../components/PractitionerHistory.jsx';
 import RankHistory from '../components/RankHistory.jsx';
 import MembershipEditor from '../components/MembershipEditor.jsx';
+import { SortTh, dateKey, useSort } from '../components/Sort.jsx';
 
 const rankLabel = (ranks, code) => {
   const r = ranks.find((x) => x.code === code);
@@ -19,6 +22,8 @@ export function PractitionerList() {
   const [items, setItems] = useState([]);
   const [ranks, setRanks] = useState([]);
   const [dojos, setDojos] = useState([]);
+  const rankIdx = (code) => ranks.findIndex((r) => r.code === code);
+  const { rows, sort, onSort } = useSort(items, { name: (p) => `${p.lastName} ${p.firstName}`, rank: (p) => rankIdx(p.rank), dojos: (p) => currentDojos(p) });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -41,7 +46,7 @@ export function PractitionerList() {
 
   return (
     <div>
-      <h1>Practitioners</h1>
+      <h1>Practitioners</h1><MyPendingEdits />
       <div className="toolbar">
         <input placeholder="Search name or email" value={q} onChange={(e) => setQ(e.target.value)} />
         <select aria-label="Filter by dojo" value={dojoId}
@@ -53,18 +58,20 @@ export function PractitionerList() {
       </div>
       {error && <p className="error">{error}</p>}
       <table>
-        <thead><tr><th>Name</th><th>Rank</th><th>Current dojos</th><th>Actions</th></tr></thead>
+        <thead><tr><SortTh label="Name" field="name" sort={sort} onSort={onSort} /><SortTh label="Rank" field="rank" sort={sort} onSort={onSort} /><SortTh label="Current dojos" field="dojos" sort={sort} onSort={onSort} /><th>Actions</th></tr></thead>
         <tbody>
-          {items.map((p) => (
-            <tr key={p.id}>
+          {rows.map((p) => (
+            <PendingTr key={p.id} path={`/api/practitioners/${p.id}`}>
               <td><Link to={`/practitioners/${p.id}`}>{p.firstName} {p.lastName}</Link></td>
               <td>{rankLabel(ranks, p.rank)}</td>
-              <td>{currentDojos(p)}</td>
-              <td>
+              <td>{p.memberships.filter((m) => !m.endDate).map((m, i) => (
+                <React.Fragment key={m.id}>{i > 0 && ', '}<Link to={`/dojos/${m.dojoId}/view`}>{m.dojoName}</Link></React.Fragment>
+              ))}</td>
+              <td className="row-actions">
                 <Link className="btn" to={`/practitioners/${p.id}/edit`}>Edit</Link>
                 <button onClick={() => remove(p)}>Delete</button>
               </td>
-            </tr>
+            </PendingTr>
           ))}
         </tbody>
       </table>
@@ -76,6 +83,8 @@ export function PractitionerDetail() {
   const { id } = useParams();
   const [p, setP] = useState(null);
   const [ranks, setRanks] = useState([]);
+  const memSort = useSort(p ? p.memberships : [], { name: (m) => m.dojoName || '', from: (m) => dateKey(m.startDate), to: (m) => dateKey(m.endDate) }, { by: 'from', desc: false });
+  const histSort = useSort(p ? p.rankHistory : [], { rank: (h) => ranks.findIndex((r) => r.code === h.rank), awarded: (h) => dateKey(h.awardedDate), where: (h) => h.dojoName || '' }, { by: 'awarded', desc: true });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -86,11 +95,11 @@ export function PractitionerDetail() {
   if (error) return <p className="error">{error}</p>;
   if (!p) return <p>Loading...</p>;
 
-  const memberships = [...(p.memberships || [])].sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
-  const history = [...(p.rankHistory || [])].sort((a, b) => (b.awardedDate || '').localeCompare(a.awardedDate || ''));
+  const memberships = memSort.rows;
+  const history = histSort.rows;
   return (
     <div>
-      <h1>{p.firstName} {p.lastName}</h1>
+      <h1>{p.firstName} {p.lastName}</h1><MyPendingEdits match={(c) => c.path.includes(`/practitioners/${id}`)} />
       <dl>
         <dt>Rank</dt><dd>{p.rank ? rankLabel(ranks, p.rank) : 'Unranked'}</dd>
         <dt>Started aikido</dt><dd>{p.startDate || '-'}</dd>
@@ -99,7 +108,7 @@ export function PractitionerDetail() {
       <h2>Dojos</h2>
       {memberships.length === 0 ? <p>No dojos yet.</p> : (
         <table>
-          <thead><tr><th>Dojo</th><th>From</th><th>To</th></tr></thead>
+          <thead><tr><SortTh label="Dojo" field="name" sort={memSort.sort} onSort={memSort.onSort} /><SortTh label="From" field="from" sort={memSort.sort} onSort={memSort.onSort} /><SortTh label="To" field="to" sort={memSort.sort} onSort={memSort.onSort} /></tr></thead>
           <tbody>
             {memberships.map((m) => (
               <tr key={m.id}>
@@ -111,13 +120,15 @@ export function PractitionerDetail() {
           </tbody>
         </table>
       )}
+      <h2>History</h2>
+      <PractitionerHistory p={p} />
       <h2>Rank history</h2>
       {history.length === 0 ? <p>No rank history yet.</p> : (
         <table>
-          <thead><tr><th>Rank</th><th>Awarded</th></tr></thead>
+          <thead><tr><SortTh label="Rank" field="rank" sort={histSort.sort} onSort={histSort.onSort} /><SortTh label="Awarded" field="awarded" sort={histSort.sort} onSort={histSort.onSort} /><SortTh label="Where" field="where" sort={histSort.sort} onSort={histSort.onSort} /></tr></thead>
           <tbody>
             {history.map((h) => (
-              <tr key={h.id}><td>{rankLabel(ranks, h.rank) || h.rank}</td><td>{h.awardedDate || '?'}</td></tr>
+              <tr key={h.id}><td>{rankLabel(ranks, h.rank) || h.rank}</td><td>{h.awardedDate || '?'}</td><td>{h.dojoId ? <Link to={`/dojos/${h.dojoId}/view`}>{h.dojoName}</Link> : '-'}</td></tr>
             ))}
           </tbody>
         </table>
@@ -174,7 +185,7 @@ export function PractitionerForm() {
 
   return (
     <div>
-      <h1>{id ? 'Edit practitioner' : 'New practitioner'}</h1>
+      <h1>{id ? 'Edit practitioner' : 'New practitioner'}</h1><MyPendingEdits match={(c) => !id || c.path.includes(`/practitioners/${id}`)} />
       {error && <p className="error">{error}</p>}
       <form onSubmit={submit}>
         <label>First name<input required value={form.firstName} onChange={set('firstName')} /></label>
@@ -194,7 +205,7 @@ export function PractitionerForm() {
         <button type="submit">Save</button>
         <Link to="/practitioners">Cancel</Link>
       </form>
-      {id && <RankHistory practitionerId={id} history={rankHistory} ranks={ranks} onChange={load} />}
+      {id && <RankHistory practitionerId={id} history={rankHistory} ranks={ranks} dojos={dojos} onChange={load} />}
       {id && (
         <MembershipEditor mode="practitioner" ownerId={id} items={memberships} options={dojos} onChange={load} />
       )}

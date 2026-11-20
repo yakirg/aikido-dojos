@@ -30,6 +30,7 @@ export const authApi = {
 };
 
 export const changesApi = {
+  mine: () => request('/api/my-edits'),
   list: (status) => request(`/api/changes${status ? `?status=${status}` : ''}`),
   count: () => request('/api/changes/count'),
   approve: (id) => request(`/api/changes/${id}/approve`, { method: 'POST' }),
@@ -67,6 +68,13 @@ export const leadersApi = {
   create: (dojoId, data) => request(`/api/dojos/${dojoId}/leaders`, { method: 'POST', body: JSON.stringify(data) }),
   update: (id, data) => request(`/api/leaders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   remove: (id) => request(`/api/leaders/${id}`, { method: 'DELETE' }),
+};
+
+export const dojoLocationsApi = {
+  forDojo: (dojoId) => request(`/api/dojos/${dojoId}/locations`),
+  create: (dojoId, data) => request(`/api/dojos/${dojoId}/locations`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => request(`/api/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (id) => request(`/api/locations/${id}`, { method: 'DELETE' }),
 };
 
 export const membershipsApi = {

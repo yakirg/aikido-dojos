@@ -109,6 +109,28 @@ class ApiTest {
     }
 
     @Test
+    void dojoLocationsTrackMoves() throws Exception {
+        long d = create("/api/dojos", Map.of("name", "Mover Dojo", "country", "USA", "city", "Albany", "foundedDate", "1990"));
+        mvc.perform(get("/api/dojos/" + d + "/locations")).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].city").value("Albany")).andExpect(jsonPath("$[0].startDate").value("1990"));
+        long first = create("/api/dojos/" + d + "/locations", Map.of("city", "Albany", "country", "USA", "startDate", "1990", "endDate", "1999"));
+        long second = create("/api/dojos/" + d + "/locations", Map.of("city", "Troy", "country", "USA", "startDate", "2000"));
+        mvc.perform(get("/api/dojos/" + d + "/locations")).andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].city").value("Troy"));
+        mvc.perform(get("/api/dojos/" + d)).andExpect(jsonPath("$.city").value("Troy"));
+        mvc.perform(put("/api/locations/" + second).contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("city", "Troy", "country", "USA", "startDate", "2000", "endDate", "1995"))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/dojos/" + d).contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("name", "Mover Dojo", "country", "USA", "city", "Latham", "foundedDate", "1990"))))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/dojos/" + d + "/locations")).andExpect(jsonPath("$[0].city").value("Troy"));
+        mvc.perform(delete("/api/locations/" + second)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/locations/" + first)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/dojos/" + d)).andExpect(status().isNoContent());
+    }
+
+    @Test
     void rankHistoryTracksPreviousRanks() throws Exception {
         long p = create("/api/practitioners", Map.of("firstName", "Rae", "lastName", "Hist"));
         long a1 = create("/api/practitioners/" + p + "/rank-awards", Map.of("rank", "IKKYU", "awardedDate", "2015-01-01"));

@@ -5,14 +5,11 @@
 
     <springProperty scope="context" name="AUDIT_LOG" source="app.audit-log" defaultValue="logs/audit.log"/>
 
-    <!-- Login and password-change events only; never contains passwords. -->
-    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <!-- Audit trail: one append-only file, never rotated or deleted by the app. Never contains passwords. -->
+    <appender name="AUDIT_FILE" class="ch.qos.logback.core.FileAppender">
         <file>${AUDIT_LOG}</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${AUDIT_LOG}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
-            <maxFileSize>10MB</maxFileSize>
-            <maxHistory>365</maxHistory>
-        </rollingPolicy>
+        <append>true</append>
+        <immediateFlush>true</immediateFlush>
         <encoder>
             <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %msg%n</pattern>
         </encoder>

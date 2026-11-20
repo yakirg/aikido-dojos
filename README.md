@@ -49,6 +49,8 @@ cd frontend && npm test
 | PUT/DELETE | `/api/memberships/{id}` | edit or remove a membership |
 | GET/POST | `/api/dojos/{id}/leaders` | dojo leaders with tenure; body: `practitionerId`, `startDate`, `endDate` (null = current), `founder` (founders are the first leaders) |
 | PUT/DELETE | `/api/leaders/{id}` | edit or remove a leader |
+| GET/POST | `/api/dojos/{id}/locations` | dojo location history; body: `address`, `city`, `state`, `postalCode`, `country`, `startDate`, `endDate` (null = current). The dojo's own address fields mirror its current location |
+| PUT/DELETE | `/api/locations/{id}` | edit or remove a location |
 | GET | `/api/countries` | `[{code, name}]` |
 | GET | `/api/locations/lookup` | `?country=US&postalCode=90210` returns city/state (via zippopotam.us) |
 
@@ -66,6 +68,6 @@ A practitioner can have many memberships, so they can belong to several dojos at
 - Admins log in (`/#/login`, session cookie), see pending edits under **Review edits**, and **Approve** (the original request is replayed against the API) or **Reject** them. Admin edits apply immediately.
 - Admins are managed under **Admins** (`/api/admin/users`).
 - First start with no admins creates one: `ADMIN_USERNAME` (default `admin`) / `ADMIN_PASSWORD`. If the password is unset, a random one is printed once in the server log (`Created 'admin' with generated password`).
-- Logins (success/failure), logouts, admin add/remove and password changes are written to `logs/audit.log` (path via `APP_AUDIT_LOG`; rolling, 365 days) with user, actor and IP. Passwords are never logged.
+- Logins (success/failure), logouts, admin add/remove and password changes are written to `logs/audit.log` (path via `APP_AUDIT_LOG`; single append-only file, never rotated or deleted) with user, actor and IP. Passwords are never logged.
 - Admins can have an email (set on the **Admins** page). When a non-admin edit is queued, every admin with an email is notified. Configure SMTP via env vars `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD`, `SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true`, `SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true`, plus optional `APP_MAIL_FROM` and `APP_PUBLIC_URL` (link in the email). Without `SPRING_MAIL_HOST` nothing is sent (a log line says so).
 - Limitation: an edit that depends on a not-yet-approved record (e.g. a membership for a pending new person) fails on approval until the parent is approved.
