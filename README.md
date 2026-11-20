@@ -63,6 +63,47 @@ Dojos have `state` and `postalCode`.
 
 A practitioner can have many memberships, so they can belong to several dojos at once and have a history of past dojos.
 
+## Run as a local service (Docker, WSL2)
+
+Stack: PostgreSQL + the app (Spring Boot serving the built React UI) on `127.0.0.1:8090`. Named volumes `pgdata` (database) and `applogs` (audit log). Both services use `restart: unless-stopped` and healthchecks.
+
+```
+cp .env.example .env     # set POSTGRES_PASSWORD (and ADMIN_PASSWORD)
+docker compose up -d --build
+docker compose ps        # both "healthy"
+```
+
+Open http://localhost:8090. The existing `Caddyfile` / `run-caddy.ps1` keep working unchanged (they proxy to `localhost:8090`; WSL2 forwards localhost to Windows). Stop the Windows `AikidoDojos` service first to free port 8090 (or set `APP_PORT` in `.env`).
+
+**Start at boot (WSL2):**
+1. `/etc/wsl.conf` must contain `[boot]` / `systemd=true` (then `wsl --shutdown` once).
+2. In WSL: `sudo systemctl enable docker` (Docker Engine). Containers with `restart: unless-stopped` come back with the daemon. With Docker Desktop, enable "Start Docker Desktop when you sign in".
+3. WSL only starts when something uses it. Create a Windows scheduled task at logon (or boot, as SYSTEM) running `wsl -d Ubuntu -u root -- sleep infinity`, e.g. `schtasks /create /tn WSLKeepAlive /sc onlogon /tr "wsl -d Ubuntu -u root -- sleep infinity"`.
+
+**Migrate existing H2 data into PostgreSQL** (run in the repo root; the app must have started once so Flyway created the schema):
+```
+# 1. dump the H2 file DB (stop the Windows service first); h2 jar is in ~/.gradle caches
+java -cp <h2.jar> org.h2.tools.Script -url "jdbc:h2:file:./data/dojos" -user sa -script dump.sql -options NOPASSWORDS NOSETTINGS
+# 2. keep only data rows, drop Flyway history
+findstr /B "INSERT INTO" dump.sql | findstr /V flyway_schema_history > data.sql
+# 3. load (stop app so nothing writes), then fix sequences/identity if tables use them
+docker compose stop app
+docker compose exec -T db psql -U dojos -d dojos -c "TRUNCATE dojo, practitioner CASCADE" 
+docker compose exec -T db psql -U dojos -d dojos -v ON_ERROR_STOP=1 < data.sql
+docker compose start app
+```
+Table names in `INSERT INTO PUBLIC."X"` may need lower-casing/unquoting (`sed -e 's/PUBLIC\.//' -e 's/"//g'`). Verify counts in the UI. If a table uses identity ids, reset with `SELECT setval(pg_get_serial_sequence('<table>','id'), (SELECT max(id) FROM <table>));`.
+
+**Backup / restore:**
+```
+mkdir -p backups
+docker compose exec -T db pg_dump -U dojos dojos | gzip > backups/dojos-$(date +%F).sql.gz     # cron daily
+gunzip -c backups/dojos-YYYY-MM-DD.sql.gz | docker compose exec -T db psql -U dojos -d dojos   # restore into an empty DB
+```
+Also copy the audit log: `docker compose cp app:/app/logs/audit.log backups/`.
+
+**Update:** `git pull && docker compose up -d --build` (Flyway applies new migrations on start). Logs: `docker compose logs -f app`.
+
 ## Edit approval
 - Anyone can browse. Edits (create/update/delete) from non-admins are **not applied**; they are stored as pending changes (`change_request` table) and the API answers `202 Accepted`.
 - Admins log in (`/#/login`, session cookie), see pending edits under **Review edits**, and **Approve** (the original request is replayed against the API) or **Reject** them. Admin edits apply immediately.
